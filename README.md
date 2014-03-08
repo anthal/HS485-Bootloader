@@ -16,8 +16,9 @@ hs485_flash_update
 * Windows application for programming of ATmega
 * WARNING! Errors and incomplete!
 
-
-git add .
-git commit -m "first commit"
-git push -u origin master
+Git
+---
+ git add .
+ git commit -m "first commit"
+ git push -u origin master
 
