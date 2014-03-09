@@ -17,8 +17,8 @@
 # etc...
 
 # program name should not be changed...
-PROGRAM    = ATmegaBOOT_168
-TARGET_ELF = arduino-bootloader.elf
+PROGRAM    = ATmega_app
+TARGET_ELF = ATmega-app.elf
 
 # enter the parameters for the avrdude isp tool
 ISPTOOL	   = stk500v2
@@ -75,8 +75,6 @@ all: TARGET = atmega8
 all: MCU_TARGET = atmega8
 #all: $(PROGRAM)_atmega328.hex
 all: $(PROGRAM)_atmega8.hex
-#all: LDSECTION  = --section-start=.text=0x7000
-#all: LDSECTION  = --section-start=.text=0x1800
 all: LDSECTION  = --section-start=.text=0x0000
 all: AVR_FREQ = 16000000L 
 all: CFLAGS += '-DMAX_TIME_COUNT=F_CPU>>4' '-DNUM_LED_FLASHES=1' -DBAUD_RATE=19200
