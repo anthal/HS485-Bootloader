@@ -8,27 +8,28 @@
 // TO CHANGE VERSION INFORMATION, EDIT PROJECT OPTIONS...
 //
 1 VERSIONINFO
-FILEVERSION 1,6,1,50
-PRODUCTVERSION 1,6,1,50
+FILEVERSION 1,6,1,91
+PRODUCTVERSION 1,6,1,91
 FILETYPE VFT_APP
 {
   BLOCK "StringFileInfo"
-  {
-    BLOCK "040704E4"
-    {
-      VALUE "CompanyName", "ELV Elektronik EG"
-      VALUE "FileVersion", "1.6.1.50"
-      VALUE "FileDescription", "Demo -Software HS485"
-      VALUE "InternalName", "HS485Demo.exe"
-      VALUE "LegalCopyright", "(C) 2005 - ELV Elektronik AG"
-      VALUE "LegalTrademarks", ""
-      VALUE "OriginalFilename", "HS485Demo.exe"
-      VALUE "ProductName", "ELV HS485 Demo-Software"
-      VALUE "ProductVersion", "V1.60"
-    }
-  }
+	 {
+		 BLOCK "040704E4"
+		 {
+			 VALUE "CompanyName", "ELV Elektronik EG"
+			 VALUE "FileVersion", "1.6.1.42"
+			 VALUE "FileDescription", "Demo -Software HS485"
+			 VALUE "InternalName", "HS485Demo.exe"
+			 VALUE "LegalCopyright", "(C) 2005 - ELV Elektronik AG"
+			 VALUE "LegalTrademarks", ""
+			 VALUE "OriginalFilename", "HS485Demo.exe"
+			 VALUE "ProductName", "ELV HS485 Demo-Software"
+			 VALUE "ProductVersion", "V1.60"
+		 }
+	 }
   BLOCK "VarFileInfo"
-  {
-    VALUE "Translation", 0x0407, 1252
-  }
+	 {
+		 VALUE "Translation", 0x0407, 1252
+	 }
 }
+

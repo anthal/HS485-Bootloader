@@ -1,0 +1,13 @@
+bytecount_intel_hex, address_intel_hex, recordtype_intel_hex
+
+:10,0600,00,0F901F90189590ECF3CF90E89FBDF4CF1A
+:04,0610,00,F894FFCF8C
+:10,0614,00,0A0D48696572206973742064617320410E
+:10,0624,00,6E77656E64756E677370726F6772616DF5
+:08,0634,00,6D2E2E2E00000C00BB
+:00,0000,01,FF
+
+1. lese Daten aus hex File, Anzahl der Bytes in Variable bytecount_hs485 (byte_counter_intel_hex)
+  teste, ob Adresse in Hexfile mit der laufenden Adresse (address_hs485) übereinstimmt
+2. wenn Ende des Intel-Hex-Files erreicht (Recordtype = 1) oder bytecount_hs485==64 (byte_counter_intel_hex==64), dann sende Daten über RS485
+

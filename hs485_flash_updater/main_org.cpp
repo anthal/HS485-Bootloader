@@ -811,12 +811,6 @@ void SetOutput(Com *p_cCom)
 }
 /************************************************************
  Firmwareupdate von einem Modul
-   Warten auf Antwort vom Modul:
-   ToDo....
-   Firmwaredaten schreiben 1. 64 Byte:
-   Autor: Klaus Wachtler (mfgkw)
-   http://www.mikrocontroller.net/topic/189911
-   Datum: 09.09.2010 22:11 
 ************************************************************/
 int FirmwareUpdate(Com *p_cCom)
 { 
@@ -841,10 +835,9 @@ int FirmwareUpdate(Com *p_cCom)
   }
   else
   {
-    printf("Oeffnen des Files %s\n ",fp);
+    printf("\Oeffnen des Files %s\n ",fp) ;
     // Buffer leeren, damit evtl. empfangene Nachrichten gelöscht werden
     while(ReadFrame(p_cCom));
-    
     // Adresse angeben
     printf("\nAdresse(Hex): ");
     scanf("%x",&ulAddress);
@@ -865,48 +858,41 @@ int FirmwareUpdate(Com *p_cCom)
     AddressHexToChar(pFrame.ucReceiverAddress,ulAddress);
     pFrame.ucFrameData[0]='p';
     Send(p_cCom,&pFrame);
-    
-    unsigned int bytecount_intel_hex, bytecount_hs485, address_intel_hex, address, recordtype_intel_hex, checksum;
-    
-    bytecount_hs485 = 0;
-    address = 0;
-    
-    while ( 1 )
+    // Warten auf Antwort vom Modul:
+    // ToDo....
+    // Firmwaredaten schreiben 1. 64 Byte:
+    // Autor: Klaus Wachtler (mfgkw)
+    // Datum: 09.09.2010 22:11 
+    // http://www.mikrocontroller.net/topic/189911
+    unsigned int bytecount_intel_hex, bytecount_hs485, address_intel_hex, recordtype_intel_hex, checksum;
+	  bytecount_hs485 = 0;
+    while( "mehr daten" )
     {
       iZeile++;
-      unsigned long scan_count = fscanf( fp, " :%2x%4x%2x", &bytecount_intel_hex, &address_intel_hex, &recordtype_intel_hex );
-      // fprintf( stderr, "\n scan_count: %lu\n", scan_count );
-      
-      if ( scan_count != 3 )
+      if( fscanf( fp, " :%2x%4x%2x", &bytecount_intel_hex, &address_intel_hex, &recordtype_intel_hex ) != 3 )
       {
         fprintf( stderr, "Zeilenstart nicht lesbar in Zeile %lu\n", iZeile );
         return 1;
       }
-      else if ( bytecount_intel_hex > sizeof(data) )
+      else if( bytecount_intel_hex > sizeof(data) )
       {
         fprintf( stderr, "Zeile zu lang\n" );
         return 1;
       }
-
       // End of file erreicht:
-      else if ( recordtype_intel_hex == 1 )
+      else if( recordtype_intel_hex == 1 )
       {
         int RestAddress = FlashAddress % 64;
+        
         // printf( "Send RS485: FlashAddress %02x\n", FlashAddress );
         // fprintf( stderr, "End of file erreicht\n" );
         // printf( "RestAddress: %02d\n", RestAddress );
         // fprintf( stderr, " End of file erreicht, FlashAddress:%04x, RestAdress:%02x\n", FlashAddress, RestAddress );
-
-        // printf( "\n iDatabyte:%04d, bytecount_hs485:%04d, address_intel_hex:%04d", iDatabyte, bytecount_hs485, address_intel_hex );
-        // printf( "\n bytecount_hs485:%04d, address_intel_hex:%04x", bytecount_hs485, address_intel_hex );
-        printf( "\nbytecount_hs485:%04d, address:%04x", bytecount_hs485, address );        
-        printf("  ==> Send HS485");
-        bytecount_hs485 = 0;
-
-        // printf( "\nSend RS485: hs485_databyte %02x\n", hs485_databyte );
+        
+				printf( "\nSend RS485: hs485_databyte %02x\n", hs485_databyte );
         Send(p_cCom,&pFrame);				
         
-        if ( RestAddress != 0 )
+				if ( RestAddress != 0 )
         {
           int i;
           for( i=0; i < (64 - RestAddress); ++i )       
@@ -922,35 +908,60 @@ int FirmwareUpdate(Com *p_cCom)
       }
       else if( recordtype_intel_hex != 0 )
       {
-        fprintf( stderr, "Recordtyp unbekannt, wird ignoriert\n" );
+        fprintf( stderr, "Recordtyp unbekannt, ignoriert\n" );
         continue;
       }
-      
       // Nutzdaten:
       else
       {
-        if (address == 0 )
-        {
-          address = address_intel_hex;
-        }
-        if  ( address != address_intel_hex )
-        {
-          printf("\naddress:%04x != address_intel_hex:%04x",address,address_intel_hex);
-        }
-        // bytecount_hs485 = bytecount_intel_hex + bytecount_hs485;
-        printf( "\nbytecount_intel_hex:%04d", bytecount_intel_hex );
-        printf( ", bytecount_hs485:%04d", bytecount_hs485 );
-        printf( ", address_intel_hex:%04x", address_intel_hex );
+				bytecount_hs485 = bytecount_intel_hex + bytecount_hs485;
+				printf( "\n bytecount_hs485 1: %04d", bytecount_hs485 );
+        printf( "\n Intel-Hex-Addr.: %04x", address_intel_hex );
         unsigned int own_checksum = 0;
-        unsigned int iDatabyte;
         own_checksum -= bytecount_intel_hex;
         own_checksum -= ( address_intel_hex & 0xFF ) + (address_intel_hex >> 8);
         own_checksum -= recordtype_intel_hex;
+        unsigned int iDatabyte;
 
-        for ( iDatabyte = 0; iDatabyte < bytecount_intel_hex; ++iDatabyte )
+        if ( hs485_databyte == 0 )
+        {
+          pFrame.ucStartByte = FRAME_START_LONG;
+          if ( FlashAddress == 0)
+          {
+            pFrame.ucControlByte=0xB6;
+          }
+          else
+          {
+            pFrame.ucControlByte = ((sendefolgenummer * 2) & 0x06) + 0x30;
+            // printf( "sendefolgenummer: %02x\n", sendefolgenummer );
+            // printf( "sendefolgenummer: %02x\n", pFrame.ucControlByte );
+            sendefolgenummer++;
+            if ( sendefolgenummer >= 4 )
+            {
+              sendefolgenummer = 0;
+            }
+          }
+					printf( "\n bytecount_hs485 Send: %04d", bytecount_hs485 );
+          pFrame.ucDataLength=bytecount_hs485 + 4;   // Datenlaenge (0x44)
+          // pFrame.ucDataLength=68;   // Datenlaenge (0x44)
+          AddressHexToChar(pFrame.ucReceiverAddress,ulAddress);
+          pFrame.ucFrameData[0] = 'w';
+          pFrame.ucFrameData[1] = address_intel_hex / 0x100;  // High-Adresse im Flash
+          pFrame.ucFrameData[2] = address_intel_hex % 0x100;  // Low-Adresse im Flash
+          printf( "\n Addr.: %02x%02x", pFrame.ucFrameData[1], pFrame.ucFrameData[2] );
+					bytecount_hs485 = bytecount_intel_hex;
+					printf( "\n bytecount_hs485 3: %04d", bytecount_hs485 );
+					
+          // printf( "Addr: %02x\n", FlashAddress );
+          pFrame.ucFrameData[3] = 0x40;             // Laenge der zu schreibenden Bytes
+          address_intel_hex_old = address_intel_hex;
+        } 
+				
+        printf( "\n Bytecount: %04d", bytecount_intel_hex );
+        for( iDatabyte=0; iDatabyte < bytecount_intel_hex; ++iDatabyte )
         {
           unsigned int c;
-          
+          printf( "\n iDatabyte: %04d", iDatabyte );
           if ( fscanf( fp, "%2x", &c ) != 1 )
           {
             fprintf( stderr, "Zeichen %d in Zeile %lu nicht lesbar\n", iDatabyte, iZeile);
@@ -963,31 +974,44 @@ int FirmwareUpdate(Com *p_cCom)
             // send_data[hs485_databyte] = c;
             // own_checksum -= data[iDatabyte];
             own_checksum -= c;
-            bytecount_hs485++;
-            if (bytecount_hs485 == 64)
+            // printf( " %02x", send_data[hs485_databyte] );
+            // printf( " %02x(%04x))", send_data[hs485_databyte], address_intel_hex );
+            if ( address_intel_hex <= address_intel_hex_old + 0x30 )
             {
-              // printf( "\n iDatabyte:%04d, bytecount_hs485:%04d, address_intel_hex:%04h", iDatabyte, bytecount_hs485, address_intel_hex );
-              // printf( "\n bytecount_hs485:%04d, address_intel_hex:%04x", bytecount_hs485, address_intel_hex );
-              printf( "\nbytecount_hs485:%04d, address:%04x", bytecount_hs485, address );
-              printf("  ==> Send HS485");
-              bytecount_hs485 = 0;
+              // printf( " %02x(%04x,%04x))", c, address_intel_hex, address_intel_hex_old );
+              // printf( " %02x(%04x))", c, address_intel_hex );
+              // Ausgabe des Bytes:
+              //printf( " %02x", c);
+              pFrame.ucFrameData[hs485_databyte + 4] = c;     // Zu schreibende Bytes
             }
-          }  
-          address++;
+            // zu hohe Adresse vom Intel-Hex-File:
+            else
+            {
+              //printf( "_FF");
+              pFrame.ucFrameData[hs485_databyte + 4] = 0xff;   // Zu schreibende Bytes
+            }
+            hs485_databyte++;
+            FlashAddress++;
+            if (hs485_databyte > 63)
+            {
+              hs485_databyte = 0;
+              //printf( "\n" );
+            }
+            // printf( "hs485_databyte %02x\n", hs485_databyte );
+            // printf( "FlashAddress %02x\n", FlashAddress );
+          }
         }
         // Checksumme vergleichen:
         if( fscanf( fp, "%2x", &checksum ) != 1 )
         {
-          // printf( " checksum:%02x\n", checksum );
           fprintf( stderr, "Lesefehler bei Checksumme in Zeile %lu\n", iZeile );
           return 1;
         }
         else
         {
-          // printf( "  checksum:%02x\n", checksum );
           if ( hs485_databyte == 0 )
           {
-            // printf( "\nSend RS485: hs485_databyte %02x", hs485_databyte );
+            printf( "\nSend RS485: hs485_databyte %02x\n", hs485_databyte );
             Send(p_cCom,&pFrame);
           } 
         }
@@ -1014,7 +1038,7 @@ int FirmwareUpdate(Com *p_cCom)
 // KeyEvent senden
 void SendKeyEvent(Com *p_cCom)
 {
-  struct stData pFrame;
+    struct stData pFrame;
   unsigned long ulAddress;
   unsigned int uiActor;
   unsigned int uiToggleBit;
@@ -1464,17 +1488,16 @@ int main(int argc, char *argv[])
         SetActor(&cCom);
         break;
       case 'f':
-            case 'F':
-                 GetTemperatur(&cCom);
-                 break;
-            case 'h':
-            case 'H':
-                 GetHelligkeit(&cCom);
-                 break;
-            case 'u':
-                 FirmwareUpdate(&cCom);
-                 break;
-        
+      case 'F':
+        GetTemperatur(&cCom);
+        break;
+      case 'h':
+      case 'H':
+        GetHelligkeit(&cCom);
+        break;
+      case 'u':
+        FirmwareUpdate(&cCom);
+        break;
     }
   }
   system("PAUSE");
