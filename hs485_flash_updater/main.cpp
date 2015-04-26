@@ -1464,17 +1464,16 @@ int main(int argc, char *argv[])
         SetActor(&cCom);
         break;
       case 'f':
-            case 'F':
-                 GetTemperatur(&cCom);
-                 break;
-            case 'h':
-            case 'H':
-                 GetHelligkeit(&cCom);
-                 break;
-            case 'u':
-                 FirmwareUpdate(&cCom);
-                 break;
-        
+      case 'F':
+        GetTemperatur(&cCom);
+        break;
+      case 'h':
+      case 'H':
+        GetHelligkeit(&cCom);
+        break;
+      case 'u':
+        FirmwareUpdate(&cCom);
+        break;
     }
   }
   system("PAUSE");

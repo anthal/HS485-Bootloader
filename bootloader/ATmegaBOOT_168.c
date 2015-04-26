@@ -20,13 +20,13 @@
 
 #define LED_PORT PORTD
 
-#define LED1     PIND4
-#define LED2     PIND5
-#define RS485    PIND2
+#define LED1     PIND4  /* LED rot-unten */
+#define LED2     PIND5  /* LED rot-rechts */
+#define RS485    PIND2  /* LED rot-oben */
 
-#define LED_red   PINB0
-#define LED_blue  PINB2
-#define LED_green PINB5
+#define LED_red   PINB0 /* RGB-LED rot  ==> Error ?? */
+#define LED_blue  PINB2 /* RGB-LED blau ==> Bootloader */
+#define LED_green PINB5 /* RGB-LED grün ==> Anwendungsprogramm */
 
 /* define various device id's */
 #define CRC16_POLYGON 		0x1002
@@ -99,7 +99,7 @@ int main()
 	} length;	
 	
 	// pointer HIER initialisieren:
-	start_app = ( void *) 0x0000; /* Pointer auf 0x0000 */
+	start_app = ( void *) 0x0000;    /* Pointer auf 0x0000 */
 	
 	setup();	
 	

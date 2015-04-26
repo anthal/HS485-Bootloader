@@ -102,7 +102,8 @@ int main()
  
   
   sputs("\n\rHier ist das Anwendungsprogramm...");
-  rgb_led(0,1,0);
+  // void rgb_led(uint8_t red, uint8_t green, uint8_t blue);
+  rgb_led(0,1,0);  /* LED rot ==> ON */
 	//bootloader();
 	
 	while (1) 
