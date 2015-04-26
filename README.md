@@ -3,9 +3,7 @@ Bootloader for ELV HS485 bus
 
 test-bootloader
 ---------------
-* Bootloader for ATmega
-* Compiler: WinAVR-20100110
-
+* Bootloader for Atmel AVR ATmega8/328
 
 test-app
 --------
@@ -19,9 +17,22 @@ hs485_flash_updater
 * Windows application for programming of ATmega
 * Compiler: http://www.bloodshed.net/
 
+SW-Tools
+--------
+* Compiler for AVR : **WinAVR-20100110**
+* IDE for AVR: **Programmer's Notepad** (from WinAVR)
+* Compiler for hs485_flash_updater: **Bloodshed Dev-C++ 5.6.3**
+* Windows 8.1 with **Git GUI** and **Git Bash**
+
+
+HW-Tools
+--------
+* **AVRISP** mkII with AVR Studio 4.19
+* 
+
 Git
 ---
- git add .
- git commit -m "first commit"
- git push -u origin master
+ `git add .`
+ `git commit -m "name of commit"`
+ `git push -u origin master`
 
