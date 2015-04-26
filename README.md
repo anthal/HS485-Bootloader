@@ -35,6 +35,9 @@ HW-Tools
 Git
 ---
  `git add .`
+ 
  `git commit -m "name of commit"`
+ 
  `git push -u origin master`
+ 
 
