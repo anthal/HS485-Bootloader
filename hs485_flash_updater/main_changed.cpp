@@ -89,9 +89,9 @@ bool GetModulType(unsigned char p_ucType, unsigned char *p_ucTypeName, int p_iMa
     case 7:
       strcpy(ucName,"HS485 IO127 - I/O-Modul");
       break;
-    case 8:
-      strcpy(ucName,"HS485 LX1 - Lux-Sensor");
-      break;
+      case 8:
+         strcpy(ucName,"HS485 LX1 - Lux-Sensor");
+         break;
     default:
       strcpy(ucName,"Type unbekannt!");
       break;
@@ -219,7 +219,7 @@ struct stData *ReadFrame(Com *m_cCom)
             }
             else
             {   // Daten ausgeben
-              //printf("Daten empfangen\n");
+              printf("Daten empfangen\n");
               struct stData *pNewData=new struct stData;
               SYSTEMTIME sysTime;
               GetSystemTime(&pNewData->sysTime);
@@ -732,40 +732,67 @@ bool SendAck(Com *p_cCom, unsigned char* p_ucReceiverAddress, unsigned char *p_u
 struct stData *Send(Com *p_cCom, struct stData *p_pFrameData)
 {
   int iRetryCounter=3;      // Maximale Anzahl an Wiederholungen
-  if((!p_cCom) || (!p_pFrameData))    // Prüfen der Übergabeparameter
+  if ((!p_cCom) || (!p_pFrameData))    // Prüfen der Existenz der Übergabeparameter
     return NULL;
   p_cCom->setTimeOut(100);  // Maximale Zeit für die Antwort vom Modul
-  while(iRetryCounter)
+  while (iRetryCounter)
   {
     struct stData *pReturnFrame;
-    if(!SendFrame(p_cCom,p_pFrameData))   // Nachricht senden
+    
+    if (!SendFrame(p_cCom,p_pFrameData))   // Nachricht senden
       return NULL;
-    if(IS_IFRAME(p_pFrameData->ucControlByte))
+    if (IS_IFRAME(p_pFrameData->ucControlByte))
     {   
-      if(pReturnFrame = ReadFrame(p_cCom))    // Auf Antwort warten
+      if (pReturnFrame = ReadFrame(p_cCom))    // Auf Antwort warten
       {
         unsigned long ulAddress1,ulAddress2;
-        AddressCharToHex(pReturnFrame->ucReceiverAddress,&ulAddress1);      // Umwandeln der empfangenen Adresse in unsigned long
-        AddressCharToHex(p_pFrameData->ucSenderAddress,&ulAddress2);      // Umwandeln der empfangenen Adresse in unsigned long     
+        AddressCharToHex(pReturnFrame->ucReceiverAddress,&ulAddress1);   // Umwandeln der empfangenen Adresse in unsigned long
+        AddressCharToHex(p_pFrameData->ucSenderAddress,&ulAddress2);     // Umwandeln der empfangenen Adresse in unsigned long     
         
         //printf("ucReceiverAddress: 0x%02x%02x%02x%02x\n", pReturnFrame->ucReceiverAddress[0], pReturnFrame->ucReceiverAddress[1], pReturnFrame->ucReceiverAddress[2], pReturnFrame->ucReceiverAddress[3]);
         //printf("ucSenderAddress  : 0x%02x%02x%02x%02x\n", p_pFrameData->ucSenderAddress[0], p_pFrameData->ucSenderAddress[1], p_pFrameData->ucSenderAddress[2], p_pFrameData->ucSenderAddress[3]);
         
-        printf("ucReceiverAddress: 0x%08x\n", ulAddress1);
-        printf("ucSenderAddress  : 0x%08x\n", ulAddress2);
-        if ((ulAddress1 == ulAddress2) && pReturnFrame && (IS_IFRAME(pReturnFrame->ucControlByte) || IS_ACK(pReturnFrame->ucControlByte)))    // Bestätigung vom angesprochenen Modul?
+        printf("ucControlByte     (answer): 0x%01x\n", pReturnFrame->ucControlByte);
+        
+        if (((pReturnFrame->ucControlByte>>5)&0x03) == 0 )
         {
-          if(((pReturnFrame->ucControlByte>>5)&0x03) == ((p_pFrameData->ucControlByte>>1)&0x03))    // Stimmt Sendefolgenummer mit Empfangsfolgenummer überein?     
-          {
-            if(IS_IFRAME(pReturnFrame->ucControlByte))    // Wenn I-Frame, dann Antwort schicken
-            {
-              SendAck(p_cCom,pReturnFrame->ucSenderAddress, pReturnFrame->ucReceiverAddress,  (pReturnFrame->ucControlByte>>1)&0x03);
-              return pReturnFrame;
-            }
-            else
-              return NULL;
-          }
-        }
+          printf("Mit Absenderadresse\n");
+          printf("ucReceiverAddress (answer): 0x%08x\n", ulAddress1);
+          printf("ucSenderAddress   (sends) : 0x%08x\n", ulAddress2);
+
+	        if ((ulAddress1 == ulAddress2) && pReturnFrame 
+			  && (IS_IFRAME(pReturnFrame->ucControlByte) || IS_ACK(pReturnFrame->ucControlByte)))    // Bestätigung vom angesprochenen Modul?
+	        {
+	          if (((pReturnFrame->ucControlByte>>5)&0x03) == ((p_pFrameData->ucControlByte>>1)&0x03))    // Stimmt Sendefolgenummer mit Empfangsfolgenummer überein?     
+	          {
+	            if (IS_IFRAME(pReturnFrame->ucControlByte))    // Wenn I-Frame, dann Antwort schicken
+	            {
+	              SendAck(p_cCom,pReturnFrame->ucSenderAddress, pReturnFrame->ucReceiverAddress,  (pReturnFrame->ucControlByte>>1)&0x03);
+	              return pReturnFrame;
+	            }
+	            else
+	              return NULL;
+	          }
+	        }
+    	}
+    	else
+    	{
+    		printf("Ohne Absenderadresse\n");
+	        if (pReturnFrame 
+			  && (IS_IFRAME(pReturnFrame->ucControlByte) || IS_ACK(pReturnFrame->ucControlByte)))    // Bestätigung vom angesprochenen Modul?
+	        {
+	          if (((pReturnFrame->ucControlByte>>5)&0x03) == ((p_pFrameData->ucControlByte>>1)&0x03))    // Stimmt Sendefolgenummer mit Empfangsfolgenummer überein?     
+	          {
+	            if (IS_IFRAME(pReturnFrame->ucControlByte))    // Wenn I-Frame, dann Antwort schicken
+	            {
+	              SendAck(p_cCom,pReturnFrame->ucSenderAddress, pReturnFrame->ucReceiverAddress,  (pReturnFrame->ucControlByte>>1)&0x03);
+	              return pReturnFrame;
+	            }
+	            else
+	              return NULL;
+	          }
+	        }
+		}
         delete pReturnFrame;
       }
       iRetryCounter--;
@@ -775,6 +802,7 @@ struct stData *Send(Com *p_cCom, struct stData *p_pFrameData)
   }
   return NULL;
 }
+
 
 // Setzt den Zustand eines Ausgangs an einem Module
 void SetOutput(Com *p_cCom)
@@ -809,8 +837,17 @@ void SetOutput(Com *p_cCom)
   Send(p_cCom,&pFrame);
   printf("\n");
 }
+
+
 /************************************************************
  Firmwareupdate von einem Modul
+   Warten auf Antwort vom Modul:
+   ToDo....
+   Firmwaredaten schreiben 1. 64 Byte:
+   "Intelhex-File mit C einlesen"
+   Autor: Klaus Wachtler (mfgkw)
+   http://www.mikrocontroller.net/topic/189911
+   Datum: 09.09.2010 22:11 
 ************************************************************/
 int FirmwareUpdate(Com *p_cCom)
 { 
@@ -826,6 +863,12 @@ int FirmwareUpdate(Com *p_cCom)
   unsigned int  hs485_databyte = 0;
   unsigned int  sendefolgenummer = 0;
   unsigned int  address_intel_hex_old;
+  struct stData *pReturnFrame;
+  unsigned char ucModulName[50];
+  
+  p_cCom->setTimeOut(2000);   // Timeout auf 2 Sekunden setzen, weil Antwort von HS485 PCI unregelmäßig kommt
+  printf("Modul wird upgedated\n");
+  crc16_init();
   
   //fp = fopen("d:\\Projekte\\HAUS_BUS\\HS485\\Module\\HS485S\\Firmware-ATmega8\\hs485s_hw1_sw2_00.hex","r");
   fp = fopen("hs485s_hw1_sw2_00.hex","r");
@@ -835,64 +878,102 @@ int FirmwareUpdate(Com *p_cCom)
   }
   else
   {
-    printf("\Oeffnen des Files %s\n ",fp) ;
+    printf("Oeffnen des Files %s\n ",fp);
     // Buffer leeren, damit evtl. empfangene Nachrichten gelöscht werden
     while(ReadFrame(p_cCom));
+    
     // Adresse angeben
     printf("\nAdresse(Hex): ");
     scanf("%x",&ulAddress);
-    printf("\nSenden von 'u' 6mal an alle ");
+    printf("\nSenden von 'u' 10mal an alle ");
     pFrame.ucStartByte=FRAME_START_LONG;
     pFrame.ucControlByte=0x94;
     pFrame.ucDataLength=2;
     AddressHexToChar(pFrame.ucReceiverAddress,0xFFFFFFFF);
-    pFrame.ucFrameData[0]='u';
-    pFrame.ucFrameData[1]=0x00;       // Sensor; hier nur Dummy, da nicht erforderlich
-    Send(p_cCom,&pFrame);
-    Send(p_cCom,&pFrame);
-    Send(p_cCom,&pFrame);
-    printf("\nSenden von 'p' (Paketgroesse abfragen) an Modul");
+    pFrame.ucFrameData[0]='u';		// 0x75
+    pFrame.ucFrameData[1]=0x00;   // Sensor; hier nur Dummy, da nicht erforderlich
+    for (int i=0;i<10;i++)
+    {
+      SendFrame(p_cCom,&pFrame);
+	  }
+
+    printf("\nSenden von 'p' (Paketgroesse abfragen) an Modul 0x%08x\n",ulAddress);
     pFrame.ucStartByte=FRAME_START_LONG;
     pFrame.ucControlByte=0x94;
     pFrame.ucDataLength=1;
     AddressHexToChar(pFrame.ucReceiverAddress,ulAddress);
-    pFrame.ucFrameData[0]='p';
-    Send(p_cCom,&pFrame);
-    // Warten auf Antwort vom Modul:
-    // ToDo....
-    // Firmwaredaten schreiben 1. 64 Byte:
-    // Autor: Klaus Wachtler (mfgkw)
-    // Datum: 09.09.2010 22:11 
-    // http://www.mikrocontroller.net/topic/189911
-    unsigned int bytecount_intel_hex, bytecount_hs485, address_intel_hex, recordtype_intel_hex, checksum;
-	  bytecount_hs485 = 0;
-    while( "mehr daten" )
+    pFrame.ucFrameData[0]='p';		// 0x70
+    if( pReturnFrame = Send(p_cCom,&pFrame) )
+    {   
+      printf("Antwort vom Modul mit Adresse 0x%08x\n",ulAddress);
+	    printf("Datenbyte 1 : %x\n",pReturnFrame->ucFrameData[0]);
+	    printf("Datenbyte 2 : %x\n",pReturnFrame->ucFrameData[1]);
+	    delete(pReturnFrame);
+    }
+	  else
+	  {
+      printf("Hardware : Keine Antwort vom Modul, oder Fehler beim Senden ==> EXIT \n");
+      return 1;
+    }   
+    
+    // kurze pause  ??
+    
+    printf("Senden von '0' (Paketgroesse abfragen) an Modul 0x%08x\n",ulAddress);
+    pFrame.ucStartByte=FRAME_START_LONG;
+    pFrame.ucControlByte=0x39;
+    pFrame.ucDataLength=0;
+    AddressHexToChar(pFrame.ucReceiverAddress,ulAddress);
+    AddressHexToChar(pFrame.ucSenderAddress,0x00000000);
+    SendFrame(p_cCom,&pFrame);
+    SendFrame(p_cCom,&pFrame);
+
+    unsigned int bytecount_intel_hex, bytecount_hs485, address_intel_hex, address, recordtype_intel_hex, checksum;
+    
+    // Start-Daten zum Firmwaredaten schreiben:
+    bytecount_hs485 = 0;
+    address = 0;
+    pFrame.ucStartByte=FRAME_START_LONG;
+    pFrame.ucControlByte=0xB6;
+    pFrame.ucDataLength=68;
+    AddressHexToChar(pFrame.ucReceiverAddress,ulAddress);
+    pFrame.ucFrameData[0]='w';		// 0x77
+    
+    while ( 1 )
     {
       iZeile++;
-      if( fscanf( fp, " :%2x%4x%2x", &bytecount_intel_hex, &address_intel_hex, &recordtype_intel_hex ) != 3 )
+      unsigned long scan_count = fscanf( fp, " :%2x%4x%2x", &bytecount_intel_hex, &address_intel_hex, &recordtype_intel_hex );
+      // fprintf( stderr, "\n scan_count: %lu\n", scan_count );
+      
+      if ( scan_count != 3 )
       {
         fprintf( stderr, "Zeilenstart nicht lesbar in Zeile %lu\n", iZeile );
         return 1;
       }
-      else if( bytecount_intel_hex > sizeof(data) )
+      else if ( bytecount_intel_hex > sizeof(data) )
       {
         fprintf( stderr, "Zeile zu lang\n" );
         return 1;
       }
+
       // End of file erreicht:
-      else if( recordtype_intel_hex == 1 )
+      else if ( recordtype_intel_hex == 1 )
       {
         int RestAddress = FlashAddress % 64;
-        
         // printf( "Send RS485: FlashAddress %02x\n", FlashAddress );
         // fprintf( stderr, "End of file erreicht\n" );
         // printf( "RestAddress: %02d\n", RestAddress );
         // fprintf( stderr, " End of file erreicht, FlashAddress:%04x, RestAdress:%02x\n", FlashAddress, RestAddress );
-        
-				printf( "\nSend RS485: hs485_databyte %02x\n", hs485_databyte );
+
+        // printf( "\n iDatabyte:%04d, bytecount_hs485:%04d, address_intel_hex:%04d", iDatabyte, bytecount_hs485, address_intel_hex );
+        // printf( "\n bytecount_hs485:%04d, address_intel_hex:%04x", bytecount_hs485, address_intel_hex );
+        printf( "bytecount_hs485:%04d, address:%04x\n", bytecount_hs485, address );        
+        printf("  ==> Send HS485\n");
+        bytecount_hs485 = 0;
+
+        // printf( "\nSend RS485: hs485_databyte %02x\n", hs485_databyte );
         Send(p_cCom,&pFrame);				
         
-				if ( RestAddress != 0 )
+        if ( RestAddress != 0 )
         {
           int i;
           for( i=0; i < (64 - RestAddress); ++i )       
@@ -908,60 +989,38 @@ int FirmwareUpdate(Com *p_cCom)
       }
       else if( recordtype_intel_hex != 0 )
       {
-        fprintf( stderr, "Recordtyp unbekannt, ignoriert\n" );
+        fprintf( stderr, "Recordtyp unbekannt, wird ignoriert\n" );
         continue;
       }
+      
       // Nutzdaten:
       else
       {
-				bytecount_hs485 = bytecount_intel_hex + bytecount_hs485;
-				printf( "\n bytecount_hs485 1: %04d", bytecount_hs485 );
-        printf( "\n Intel-Hex-Addr.: %04x", address_intel_hex );
+        if (address == 0 )
+        {
+          address = address_intel_hex;
+        }
+        if  ( address != address_intel_hex )
+        {
+          printf("\naddress:%04x != address_intel_hex:%04x",address,address_intel_hex);
+        }
+        // bytecount_hs485 = bytecount_intel_hex + bytecount_hs485;
+        printf( "bytecount_intel_hex:%04d", bytecount_intel_hex );
+        printf( ", bytecount_hs485:%04d", bytecount_hs485 );
+        printf( ", address_intel_hex:%04x\n", address_intel_hex );
+        pFrame.ucFrameData[1] = address_intel_hex;           // Counter Bytes        
+        pFrame.ucFrameData[2] = address_intel_hex;           // Counter Bytes        
+        pFrame.ucFrameData[3] = bytecount_hs485;             // Counter Bytes        
         unsigned int own_checksum = 0;
+        unsigned int iDatabyte;
         own_checksum -= bytecount_intel_hex;
         own_checksum -= ( address_intel_hex & 0xFF ) + (address_intel_hex >> 8);
         own_checksum -= recordtype_intel_hex;
-        unsigned int iDatabyte;
 
-        if ( hs485_databyte == 0 )
-        {
-          pFrame.ucStartByte = FRAME_START_LONG;
-          if ( FlashAddress == 0)
-          {
-            pFrame.ucControlByte=0xB6;
-          }
-          else
-          {
-            pFrame.ucControlByte = ((sendefolgenummer * 2) & 0x06) + 0x30;
-            // printf( "sendefolgenummer: %02x\n", sendefolgenummer );
-            // printf( "sendefolgenummer: %02x\n", pFrame.ucControlByte );
-            sendefolgenummer++;
-            if ( sendefolgenummer >= 4 )
-            {
-              sendefolgenummer = 0;
-            }
-          }
-					printf( "\n bytecount_hs485 Send: %04d", bytecount_hs485 );
-          pFrame.ucDataLength=bytecount_hs485 + 4;   // Datenlaenge (0x44)
-          // pFrame.ucDataLength=68;   // Datenlaenge (0x44)
-          AddressHexToChar(pFrame.ucReceiverAddress,ulAddress);
-          pFrame.ucFrameData[0] = 'w';
-          pFrame.ucFrameData[1] = address_intel_hex / 0x100;  // High-Adresse im Flash
-          pFrame.ucFrameData[2] = address_intel_hex % 0x100;  // Low-Adresse im Flash
-          printf( "\n Addr.: %02x%02x", pFrame.ucFrameData[1], pFrame.ucFrameData[2] );
-					bytecount_hs485 = bytecount_intel_hex;
-					printf( "\n bytecount_hs485 3: %04d", bytecount_hs485 );
-					
-          // printf( "Addr: %02x\n", FlashAddress );
-          pFrame.ucFrameData[3] = 0x40;             // Laenge der zu schreibenden Bytes
-          address_intel_hex_old = address_intel_hex;
-        } 
-				
-        printf( "\n Bytecount: %04d", bytecount_intel_hex );
-        for( iDatabyte=0; iDatabyte < bytecount_intel_hex; ++iDatabyte )
+        for ( iDatabyte = 0; iDatabyte < bytecount_intel_hex; ++iDatabyte )
         {
           unsigned int c;
-          printf( "\n iDatabyte: %04d", iDatabyte );
+          
           if ( fscanf( fp, "%2x", &c ) != 1 )
           {
             fprintf( stderr, "Zeichen %d in Zeile %lu nicht lesbar\n", iDatabyte, iZeile);
@@ -974,71 +1033,176 @@ int FirmwareUpdate(Com *p_cCom)
             // send_data[hs485_databyte] = c;
             // own_checksum -= data[iDatabyte];
             own_checksum -= c;
-            // printf( " %02x", send_data[hs485_databyte] );
-            // printf( " %02x(%04x))", send_data[hs485_databyte], address_intel_hex );
-            if ( address_intel_hex <= address_intel_hex_old + 0x30 )
+            bytecount_hs485++;
+            if (bytecount_hs485 == 64)
             {
-              // printf( " %02x(%04x,%04x))", c, address_intel_hex, address_intel_hex_old );
-              // printf( " %02x(%04x))", c, address_intel_hex );
-              // Ausgabe des Bytes:
-              //printf( " %02x", c);
-              pFrame.ucFrameData[hs485_databyte + 4] = c;     // Zu schreibende Bytes
+              // printf( "\n iDatabyte:%04d, bytecount_hs485:%04d, address_intel_hex:%04h", iDatabyte, bytecount_hs485, address_intel_hex );
+              // printf( "\n bytecount_hs485:%04d, address_intel_hex:%04x", bytecount_hs485, address_intel_hex );
+              printf( "bytecount_hs485:%04d, address:%04x \n", bytecount_hs485, address );
+              printf("  ==> Send HS485 \n");
+              bytecount_hs485 = 0;
             }
-            // zu hohe Adresse vom Intel-Hex-File:
-            else
-            {
-              //printf( "_FF");
-              pFrame.ucFrameData[hs485_databyte + 4] = 0xff;   // Zu schreibende Bytes
-            }
-            hs485_databyte++;
-            FlashAddress++;
-            if (hs485_databyte > 63)
-            {
-              hs485_databyte = 0;
-              //printf( "\n" );
-            }
-            // printf( "hs485_databyte %02x\n", hs485_databyte );
-            // printf( "FlashAddress %02x\n", FlashAddress );
-          }
+          }  
+          address++;
         }
         // Checksumme vergleichen:
         if( fscanf( fp, "%2x", &checksum ) != 1 )
         {
-          fprintf( stderr, "Lesefehler bei Checksumme in Zeile %lu\n", iZeile );
+          // printf( " checksum:%02x\n", checksum );
+          fprintf( stderr, "Lesefehler bei Checksumme in Zeile %lu \n", iZeile );
           return 1;
         }
         else
         {
+          // printf( "  checksum:%02x\n", checksum );
           if ( hs485_databyte == 0 )
           {
-            printf( "\nSend RS485: hs485_databyte %02x\n", hs485_databyte );
-            Send(p_cCom,&pFrame);
+            // printf( "\nSend RS485: hs485_databyte %02x", hs485_databyte );
+            printf("  ==> Send HS485: pFrame ");
+            //Send(p_cCom,&pFrame);
+            if( pReturnFrame = Send(p_cCom,&pFrame) )
+            {   
+              printf("Antwort vom Modul mit Adresse 0x%08x \n",ulAddress);
+              printf("Datenbyte 1 : %x\n",pReturnFrame->ucFrameData[0]);
+              printf("Datenbyte 2 : %x\n",pReturnFrame->ucFrameData[1]);
+              delete(pReturnFrame);
+            }
+            else
+            {
+              printf("Hardware : Keine Antwort vom Modul, oder Fehler beim Senden ==> EXIT \n");
+              return 1;
+            }   
+    
           } 
         }
       }
     }
     //printf("\n");
+  
+    // Bootloadermodus beenden:
+    // Updatemodus beenden:
+    printf("Senden von '0' (Paketgroesse abfragen) an Modul 0x%08x\n",ulAddress);
+    pFrame.ucStartByte=FRAME_START_LONG;
+    pFrame.ucControlByte=0x59;
+    pFrame.ucDataLength=0;
+    AddressHexToChar(pFrame.ucReceiverAddress,ulAddress);
+    AddressHexToChar(pFrame.ucSenderAddress,0x00000000);
+    SendFrame(p_cCom,&pFrame);
+    
+    printf("Senden von 'u' 10mal an alle \n");
+    pFrame.ucStartByte=FRAME_START_LONG;
+    pFrame.ucControlByte=0xD0;
+    pFrame.ucDataLength=2;
+    AddressHexToChar(pFrame.ucReceiverAddress,0xFFFFFFFF);
+    pFrame.ucFrameData[0]='g';		// 0x67
+    pFrame.ucFrameData[1]=0x00;     // Sensor; hier nur Dummy, da nicht erforderlich
+    for (int i=0;i<10;i++)
+    {
+      SendFrame(p_cCom,&pFrame);
+	  }
   } 
   fclose(fp);
+}
+
+/************************************************************
+************************************************************/
+int TestFirmwareUpdate(Com *p_cCom)
+{ 
+  struct stData pFrame;
+  unsigned long ulAddress;
+  unsigned long FlashAddress = 0;
+  unsigned int  uiActor;
+  unsigned int  uiValue;
+  FILE          *fp;
+  unsigned long iZeile = 0;
+  unsigned char data[128];         // Platz für Daten aus einer Zeile
+  unsigned char send_data[128];    // Platz für Daten zum Senden ueber HS485
+  unsigned int  hs485_databyte = 0;
+  unsigned int  sendefolgenummer = 0;
+  unsigned int  address_intel_hex_old;
+  struct stData *pReturnFrame;
+  unsigned char ucModulName[50];
+
+  p_cCom->setTimeOut(2000);   // Timout auf 2 Sekunden setzen, weil Antwort von HS485 PCI unregelmäßig kommt
+  printf("TEST: Modul wird upgedated\n");
+  crc16_init();
   
-  // Bootloadermodus beenden:
-  // Senden u an alle:
-  pFrame.ucStartByte=FRAME_START_LONG;
-  pFrame.ucControlByte=0xD0;
-  pFrame.ucDataLength=4;
-  AddressHexToChar(pFrame.ucReceiverAddress,0xFFFFFFFF);
-  pFrame.ucFrameData[0]='g';
-  pFrame.ucFrameData[1]=0x00;       // Sensor; hier nur Dummy, da nicht erforderlich
-  Send(p_cCom,&pFrame);
-  Send(p_cCom,&pFrame);
-  Send(p_cCom,&pFrame);
-  printf("\n");
+    // Buffer leeren, damit evtl. empfangene Nachrichten gelöscht werden
+    while(ReadFrame(p_cCom));
+    
+    // Adresse angeben
+    ulAddress = 0x1028;
+    //printf("\nAdresse(Hex): ");
+    //scanf("%x",&ulAddress);
+    
+    printf("Senden von 'u' 10mal an alle \n");
+    pFrame.ucStartByte=FRAME_START_LONG;
+    pFrame.ucControlByte=0x94;
+    pFrame.ucDataLength=2;
+    AddressHexToChar(pFrame.ucReceiverAddress,0xFFFFFFFF);
+    pFrame.ucFrameData[0]='u';		// 0x75
+    pFrame.ucFrameData[1]=0x00;     // Sensor; hier nur Dummy, da nicht erforderlich
+    for (int i=0;i<10;i++)
+    {
+      SendFrame(p_cCom,&pFrame);
+	  }
+
+    printf("Senden von 'p' (Paketgroesse abfragen) an Modul 0x%08x\n",ulAddress);
+    pFrame.ucStartByte=FRAME_START_LONG;
+    pFrame.ucControlByte=0x94;
+    pFrame.ucDataLength=1;
+    AddressHexToChar(pFrame.ucReceiverAddress,ulAddress);
+    pFrame.ucFrameData[0]='p';		// 0x70
+    if( pReturnFrame = Send(p_cCom,&pFrame) )
+    {   
+      printf("Antwort vom Modul mit Adresse 0x%08x\n",ulAddress);
+	    printf("Datenbyte 1 : %x\n",pReturnFrame->ucFrameData[0]);
+	    printf("Datenbyte 2 : %x\n",pReturnFrame->ucFrameData[1]);
+	    delete(pReturnFrame);
+    }
+	  else
+	  {
+      printf("Hardware : Keine Antwort vom Modul, oder Fehler beim Senden\n");
+    }   
+    
+    // kurze pause  ??
+    
+    printf("Senden von '0' (Paketgroesse abfragen) an Modul 0x%08x\n",ulAddress);
+    pFrame.ucStartByte=FRAME_START_LONG;
+    pFrame.ucControlByte=0x39;
+    pFrame.ucDataLength=0;
+    AddressHexToChar(pFrame.ucReceiverAddress,ulAddress);
+    AddressHexToChar(pFrame.ucSenderAddress,0x00000000);
+    SendFrame(p_cCom,&pFrame);
+    
+    // Updatemodus beenden:
+    printf("Senden von '0' (Paketgroesse abfragen) an Modul 0x%08x\n",ulAddress);
+    pFrame.ucStartByte=FRAME_START_LONG;
+    pFrame.ucControlByte=0x59;
+    pFrame.ucDataLength=0;
+    AddressHexToChar(pFrame.ucReceiverAddress,ulAddress);
+    AddressHexToChar(pFrame.ucSenderAddress,0x00000000);
+    SendFrame(p_cCom,&pFrame);
+    
+    printf("Senden von 'u' 10mal an alle \n");
+    pFrame.ucStartByte=FRAME_START_LONG;
+    pFrame.ucControlByte=0xD0;
+    pFrame.ucDataLength=2;
+    AddressHexToChar(pFrame.ucReceiverAddress,0xFFFFFFFF);
+    pFrame.ucFrameData[0]='g';		// 0x67
+    pFrame.ucFrameData[1]=0x00;     // Sensor; hier nur Dummy, da nicht erforderlich
+    for (int i=0;i<10;i++)
+    {
+      SendFrame(p_cCom,&pFrame);
+	  }
+
+  //}
 }
 
 // KeyEvent senden
 void SendKeyEvent(Com *p_cCom)
 {
-    struct stData pFrame;
+  struct stData pFrame;
   unsigned long ulAddress;
   unsigned int uiActor;
   unsigned int uiToggleBit;
@@ -1225,9 +1389,9 @@ void GetModulVersion(Com *p_cCom)
 // Liest Temperatur und Luftfeuchtikeit von einem JCU10 TFS und zeit die Werte an
 void GetTemperatur(Com *p_cCom)
 {
-  short          temperatur   = 0;
-  float          temperatur_F = 0;
-  unsigned char  feuchte      = 0;
+   short          temperatur   = 0;
+   float          temperatur_F = 0;
+   unsigned char  feuchte      = 0;
   struct stData  pFrame;
   struct stData  *pReturnFrame;
   unsigned long  ulAddress;
@@ -1305,7 +1469,7 @@ void GetHelligkeit(Com *p_cCom)
       helligkeit <<= 8;
       helligkeit += pReturnFrame->ucFrameData[3];
 
-    printf("Helligkeit:       %10d Lux (nicht geeicht)\n",helligkeit);
+    printf("Helligkeit:       %10d Lux (nich geeicht)\n",helligkeit);
     delete(pReturnFrame);
   }
   else
@@ -1347,6 +1511,7 @@ void SetActor(Com *p_cCom)
 }
 
 
+
 // Gibt das Menü aus
 void ShowMenu()
 {
@@ -1369,6 +1534,7 @@ void ShowMenu()
   printf("L. Modulliste anzeigen\n");
   printf("C. Bildschirm loeschen\n");
   printf("u. Firmware Update\n");
+  printf("t. Test Firmware Update\n");
   printf("\nE. Programmende\n\n");
 }
 
@@ -1497,6 +1663,10 @@ int main(int argc, char *argv[])
       case 'u':
         FirmwareUpdate(&cCom);
         break;
+      case 't':
+        TestFirmwareUpdate(&cCom);
+        break;
+
     }
   }
   system("PAUSE");

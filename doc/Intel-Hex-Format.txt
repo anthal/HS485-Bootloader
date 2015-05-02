@@ -1,0 +1,7 @@
+﻿:100000002DCA1895F9C984C0189518951895189592
+:
+10 - Länge der Nutzdaten (0x10 = 16 Byte)
+00 00 - Ladeadresse im Flash
+00 - Satztyp
+2D CA 18 95 F9 C9 84 C0 18 95 18 95 18 95 18 95 - Daten (16 Byte)
+92 - Prüfsumme

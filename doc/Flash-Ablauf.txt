@@ -1,0 +1,23 @@
+﻿
+Homematic: Code
+
+    0x7A (z): Senden Abschalten
+    0x75 (u): Bootloader Mode (Sprung in Bootloader), keine Bestätigung
+    0x70 (p): Packetgröße abfragen (nur im Bootloader-Mode)
+    0x77 (w): Firmware-Daten schreiben (nur im Bootloader-Mode)
+
+
+HS485: Code
+
+    0x75 (u): an Broadcast: Senden Abschalten
+    0x70 (p): an Zieladresse: Bootloader Mode (Sprung in Bootloader)
+    0x00: Packetgröße abfragen ?? (nur im Bootloader-Mode)
+    0x77 (w): an Zieladresse: Firmware-Daten schreiben (nur im Bootloader-Mode)
+
+
+ToDo:
+
+    Statusbytedecoder programmieren!
+    
+C:\Program Files (x86)\Dev-Cpp\MinGW64\x86_64-w64-mingw32\bin
+    

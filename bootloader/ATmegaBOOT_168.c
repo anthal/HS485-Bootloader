@@ -282,6 +282,7 @@ int main()
 					if (FramePointer >= MAX_RX_FRAME_LENGTH){
 						// Maximale Framelänge überschritten!
 						//error_led(3);
+						rgb_led(1,0,0);
 						continue;
 					}
 					FramePointer++;

@@ -12,13 +12,19 @@ HS485 Applikation
 #include "uart.h"
 #include "main.h"
 #include "suart.h"
- 
+
+/* 
+#define DEBUG 
+*/
 #define UART_BAUD_RATE	19200
  
 #define LED_PORT_B PORTB
-#define LED_DDR  DDRD
 #define LED_DDR_B  DDRB
 
+#define LED_PORT_C PORTC
+#define LED_DDR_C  DDRC
+
+#define LED_DDR  DDRD
 #define LED_PORT PORTD
 
 #define LED1     PIND4
@@ -28,6 +34,11 @@ HS485 Applikation
 #define LED_red   PINB0
 #define LED_blue  PINB2
 #define LED_green PINB5
+
+#define Seg_A	PINC0
+#define Seg_B	PINC1
+#define Seg_C	PINC2
+#define Seg_D	PINC3
  
 /* define various device id's */
 #define CRC16_POLYGON 				0x1002
@@ -98,12 +109,10 @@ int main()
   
 	setup();
   
-  sei();
- 
-  
-  sputs("\n\rHier ist das Anwendungsprogramm...");
-  // void rgb_led(uint8_t red, uint8_t green, uint8_t blue);
-  rgb_led(0,1,0);  /* LED rot ==> ON */
+	sei();
+
+	sputs("\n\rHier ist das Anwendungsprogramm...");
+	rgb_led(0,1,0);  /* LED gruen ==> ON */
 	//bootloader();
 	
 	while (1) 
@@ -112,14 +121,19 @@ int main()
 		
 		if ( ch & UART_NO_DATA )
 		{
-		  ;// 
-		}
+			#ifdef DEBUG 
+			  sputs("\n\UART no data!");
+			#endif	
+			//Segment_led(0);
+ 		}
 		else
 		{
-		  #ifdef DEBUG 
+		    
+			#ifdef DEBUG 
+			  // output of receives character:
 			  sputchar(ch);
 			#endif	
-
+				
 			if (ch == ESCAPE_CHAR && Escape == 0)
 			{
 				Escape = 1;
@@ -137,6 +151,7 @@ int main()
 				#ifdef DEBUG 
 				  sputs("\n\rStartzeichen empfangen");
 				#endif	
+				Segment_led(1);
 			}
 			else
 			{
@@ -154,7 +169,9 @@ int main()
 					crc16_shift(ch);
 					#ifdef DEBUG 
 						sputs("\nZiel-Adressbytes empfangen");
-  				#endif	
+						
+					#endif	
+					Segment_led(2);
 
 				}
 				
@@ -167,14 +184,16 @@ int main()
 					AddressCharToHex(to_address.byte, &ulAddress1);
 					#ifdef DEBUG 
   					sputs("\nControllbyte empfangen");
-  				#endif	
-  				// Adresse mit der Eigenen vergleichen:
+					#endif	
+					Segment_led(3);
+					// Adresse mit der Eigenen vergleichen:
 					if (ulAddress1 == 0x1029 )		
 					{
 						address_ok = true;
 						#ifdef DEBUG 
 							sputs("\nAdresse OK");
 						#endif	
+						Segment_led(4);
 					}
 				}
 				
@@ -186,7 +205,8 @@ int main()
 					crc16_shift(ch);
 					#ifdef DEBUG 
 						sputs("\nControllbyte auswerten");
-  				#endif	
+					#endif	
+					Segment_led(5);
 				}
 				
 				// Daten-Länge empfangen
@@ -198,7 +218,8 @@ int main()
 					crc16_shift(ch);
 					#ifdef DEBUG 
 						sputs("\nDatenlaenge empfangen");
-  				#endif	
+					#endif	
+					Segment_led(6);
 				}
 				
 				else // Daten empfangen
@@ -216,13 +237,17 @@ int main()
 						#ifdef DEBUG 
 							sputs("\nDaten komplett empfangen");
 						#endif	
+						Segment_led(7);
 						
 						// Checksumme überprüfen
 						if (crc16_register == 0)
 						{	
+						    Segment_led(8);
 							// Flash Block size:
 							if (FrameData[0] == 0x70)
 							{
+							
+								// LED Blau ==> ON	
 								rgb_led(0,0,1);	
 								// Sprung zum Bootloader:
 								// Send ACK
@@ -230,6 +255,7 @@ int main()
 								#ifdef DEBUG 
 									sputs("\nSprung zum Bootloader");
 								#endif	
+								Segment_led(9);
 								bootloader();
 							}	
 							
@@ -242,12 +268,14 @@ int main()
 						else
 						{
 							// Prüfsumme falsch
+							// LED rot ==> ON
 							rgb_led(1,0,0);
 							continue;
 						}
 					}
 					if (FramePointer >= MAX_RX_FRAME_LENGTH){
 						// Maximale Framelänge überschritten!
+						// LED rot ==> ON
 						rgb_led(1,0,0);
 						continue;
 					}
@@ -279,6 +307,15 @@ void setup(void)
 	LED_DDR_B |= _BV(LED_red);
 	LED_DDR_B |= _BV(LED_green);
 	LED_DDR_B |= _BV(LED_blue);
+	
+	/* set 7 Seg. pins as output */
+	LED_DDR_C |= _BV(Seg_A);
+	LED_DDR_C |= _BV(Seg_B);
+	LED_DDR_C |= _BV(Seg_C);
+	LED_DDR_C |= _BV(Seg_D);
+
+	// 7 Seg. ==> 0:
+	Segment_led(0);
 
 	// Error LED aus:
 	LED_PORT |= _BV(LED2);
@@ -287,7 +324,7 @@ void setup(void)
 	LED_PORT &= ~_BV(RS485);
 
 	// RGB LED an:
-  rgb_led(1,1,1);
+	rgb_led(1,1,1);
 	
 	uart_init( UART_BAUD_SELECT(UART_BAUD_RATE,F_CPU) ); 
 	suart_init();
@@ -459,6 +496,85 @@ void rgb_led(uint8_t red, uint8_t green, uint8_t blue )
 	{
 	  LED_PORT_B |= _BV(LED_blue);
 	}
+}
+
+/*********************************************************************************** 
+ 7 Segment Display
+************************************************************************************/
+void Segment_led( uint8_t value )
+{
+	// 7 Seg. ==> 0:
+	if ( value == 0)
+	{
+		LED_PORT_C &= ~_BV(Seg_A);
+		LED_PORT_C &= ~_BV(Seg_B);
+		LED_PORT_C &= ~_BV(Seg_C);
+		LED_PORT_C &= ~_BV(Seg_D);
+	}
+	else if ( value == 1)
+	{
+		LED_PORT_C |= _BV(Seg_A);
+		LED_PORT_C &= ~_BV(Seg_B);
+		LED_PORT_C &= ~_BV(Seg_C);
+		LED_PORT_C &= ~_BV(Seg_D);
+	}	
+	else if ( value == 2)
+	{
+		LED_PORT_C &= ~_BV(Seg_A);
+		LED_PORT_C |= _BV(Seg_B);
+		LED_PORT_C &= ~_BV(Seg_C);
+		LED_PORT_C &= ~_BV(Seg_D);
+	}	
+	else if ( value == 3)
+	{
+		LED_PORT_C |= _BV(Seg_A);
+		LED_PORT_C |= _BV(Seg_B);
+		LED_PORT_C &= ~_BV(Seg_C);
+		LED_PORT_C &= ~_BV(Seg_D);
+	}	
+	else if ( value == 4)
+	{
+		LED_PORT_C &= ~_BV(Seg_A);
+		LED_PORT_C &= ~_BV(Seg_B);
+		LED_PORT_C |= _BV(Seg_C);
+		LED_PORT_C &= ~_BV(Seg_D);
+	}	
+	else if ( value == 5)
+	{
+		LED_PORT_C |= _BV(Seg_A);
+		LED_PORT_C &= ~_BV(Seg_B);
+		LED_PORT_C |= _BV(Seg_C);
+		LED_PORT_C &= ~_BV(Seg_D);
+	}	
+	else if ( value == 6)
+	{
+		LED_PORT_C &= ~_BV(Seg_A);
+		LED_PORT_C |= _BV(Seg_B);
+		LED_PORT_C |= _BV(Seg_C);
+		LED_PORT_C &= ~_BV(Seg_D);
+	}	
+	else if ( value == 7)
+	{
+		LED_PORT_C |= _BV(Seg_A);
+		LED_PORT_C |= _BV(Seg_B);
+		LED_PORT_C |= _BV(Seg_C);
+		LED_PORT_C &= ~_BV(Seg_D);
+	}	
+	else if ( value == 8)
+	{
+		LED_PORT_C &= ~_BV(Seg_A);
+		LED_PORT_C &= ~_BV(Seg_B);
+		LED_PORT_C &= ~_BV(Seg_C);
+		LED_PORT_C |= _BV(Seg_D);
+	}	
+	else if ( value == 9)
+	{
+		LED_PORT_C |= _BV(Seg_A);
+		LED_PORT_C &= ~_BV(Seg_B);
+		LED_PORT_C &= ~_BV(Seg_C);
+		LED_PORT_C |= _BV(Seg_D);
+	}	
+
 }
 
 /*********************************************************************************** 
