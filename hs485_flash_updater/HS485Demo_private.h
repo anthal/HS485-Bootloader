@@ -5,13 +5,13 @@
 #define HS485DEMO_PRIVATE_H
 
 /* VERSION DEFINITIONS */
-#define VER_STRING	"1.6.1.257"
+#define VER_STRING	"1.6.1.260"
 #define VER_MAJOR	1
 #define VER_MINOR	6
 #define VER_RELEASE	1
-#define VER_BUILD	257
+#define VER_BUILD	260
 #define COMPANY_NAME	"ELV Elektronik EG"
-#define FILE_VERSION	"1.6.1.257"
+#define FILE_VERSION	"1.6.1.260"
 #define FILE_DESCRIPTION	"Demo -Software HS485"
 #define INTERNAL_NAME	"HS485Demo.exe"
 #define LEGAL_COPYRIGHT	"(C) 2005 - ELV Elektronik AG"

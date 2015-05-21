@@ -951,7 +951,7 @@ int FirmwareUpdate(Com *p_cCom)
   }
   else
   {
-    printf("\nERROR: Keine Antwort vom Modul, oder Fehler beim Senden ==> EXIT \n");
+    printf("\nERROR if send 'p': Keine Antwort vom Modul, oder Fehler beim Senden ==> EXIT \n");
     ExitBootloadermode(fp, p_cCom);
     return 1;
   }   
@@ -1151,7 +1151,7 @@ int FirmwareUpdate(Com *p_cCom)
       }
       else
       {
-        printf("\nERROR: Keine Antwort vom Modul, oder Fehler beim Senden ==> EXIT \n");
+        printf("\nERROR (End of File Record): Keine Antwort vom Modul, oder Fehler beim Senden ==> EXIT \n");
         ExitBootloadermode(fp, p_cCom);
         return 1;
       }           
@@ -1174,7 +1174,7 @@ int FirmwareUpdate(Com *p_cCom)
         }
         else
         {
-          printf("\nERROR: Keine Antwort vom Modul, oder Fehler beim Senden ==> EXIT \n");
+          printf("\nERROR if send RestAddress: Keine Antwort vom Modul, oder Fehler beim Senden ==> EXIT \n");
           ExitBootloadermode(fp, p_cCom);
           return 1;
         }   

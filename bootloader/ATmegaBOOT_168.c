@@ -33,7 +33,7 @@
 #define FRAME_START_LONG 	0xFD
 #define FRAME_START_SHORT	0xFE
 #define ESCAPE_CHAR			  0xFC
-#define MAX_RX_FRAME_LENGTH      255
+#define MAX_RX_FRAME_LENGTH   255
 #define CONTAINS_SENDER(x)  (((x) & (1<<3)) !=0)
 
 // #define DEBUG
@@ -159,7 +159,8 @@ int main()
 					crc16_shift(ch);
 					AddressCharToHex(to_address.byte, &ulAddress1);
 					// Adresse mit der Eigenen vergleichen:
-					if (ulAddress1 == 0x1029 )		
+					//if (ulAddress1 == 0x1029 )		
+					if (ulAddress1 == 0x1028 )		
 					{
 						address_ok = true;
 					}
@@ -514,7 +515,7 @@ void setup(void)
  	//rgb_led(0,0,0);
 	sputs("\n\rBootloader Setup" );
 	//_delay_ms(1000);
-	// RGB LED an:
+	// RGB LED Blau an:
   rgb_led(0,0,1);
 
 }

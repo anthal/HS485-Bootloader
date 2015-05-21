@@ -13,9 +13,10 @@ HS485 Applikation
 #include "main.h"
 #include "suart.h"
 
-/* 
+
 #define DEBUG 
-*/
+
+
 #define UART_BAUD_RATE	19200
  
 #define LED_PORT_B PORTB
@@ -87,6 +88,7 @@ unsigned char DataLength;
 unsigned char FramePointer;
 // unsigned int  LocalCRCRegister;
 unsigned int  crc16_register;				// Register mit CRC16 Code
+//unsigned uint16_t  crc16_register;				// Register mit CRC16 Code
 unsigned char FrameData[MAX_RX_FRAME_LENGTH];
 uint8_t SenderAddress[4];
 //uint8_t buff[256];
@@ -122,7 +124,7 @@ int main()
 		if ( ch & UART_NO_DATA )
 		{
 			#ifdef DEBUG 
-			  sputs("\n\UART no data!");
+			  //sputs("\nUART no data!");
 			#endif	
 			//Segment_led(0);
  		}
@@ -131,7 +133,8 @@ int main()
 		    
 			#ifdef DEBUG 
 			  // output of receives character:
-			  sputchar(ch);
+			  //sputchar(ch);
+			  //sputs(":0x%2x ", ch);
 			#endif	
 				
 			if (ch == ESCAPE_CHAR && Escape == 0)
@@ -187,7 +190,8 @@ int main()
 					#endif	
 					Segment_led(3);
 					// Adresse mit der Eigenen vergleichen:
-					if (ulAddress1 == 0x1029 )		
+					//if (ulAddress1 == 0x1029 )		
+					if (ulAddress1 == 0x1028 )		
 					{
 						address_ok = true;
 						#ifdef DEBUG 
@@ -246,16 +250,17 @@ int main()
 							// Flash Block size:
 							if (FrameData[0] == 0x70)
 							{
-							
-								// LED Blau ==> ON	
-								rgb_led(0,0,1);	
-								// Sprung zum Bootloader:
 								// Send ACK
 								SendAck(2, (ControlByte >> 1) & 0x03);
 								#ifdef DEBUG 
 									sputs("\nSprung zum Bootloader");
 								#endif	
 								Segment_led(9);
+								// kurz warten
+								_delay_ms(4);
+								// LED Blau ==> ON	
+								rgb_led(0,0,1);	
+								// Sprung zum Bootloader:
 								bootloader();
 							}	
 							
@@ -334,6 +339,8 @@ void setup(void)
 
 /*********************************************************************************** 
  Send ACK
+ 
+ SendAck(2, (ControlByte >> 1) & 0x03);
 ************************************************************************************/
 void SendAck(int typ, unsigned char Empfangsfolgenummer)
 {
@@ -346,7 +353,16 @@ void SendAck(int typ, unsigned char Empfangsfolgenummer)
 	//_delay_ms(1);
 	
 	ControlByte = (( Empfangsfolgenummer & 0x03 ) << 5 ) | 0x11;
-	// printf("Controlbyte:%02x ", stAckData.ucControlByte);
+	
+	// NUR zum TESTEN!!! Bitte fixen und dann entfernen!!
+	ControlByte = 0x52;
+	
+	#ifdef DEBUG 
+	  //sputs("Controlbyte:0x%02x ", ControlByte);
+	  sputs("\nSend Controlbyte: ");
+	  // printf("Controlbyte:%02x ", stAckData.ucControlByte);
+	#endif	
+
 	DataLength = 0;
 	StartByte = FRAME_START_SHORT;
 	// Frame prüfen (== FE):
@@ -392,6 +408,7 @@ void SendAck(int typ, unsigned char Empfangsfolgenummer)
 	crc16_shift(0);
 	// CRC16-Checksumme:
 	SendDataByte((crc16_register >> 8) & 0xff);	
+	_delay_ms(1);
 	SendDataByte((crc16_register) & 0xff);
 	
 	//_delay_ms(2);
