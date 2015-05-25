@@ -14,7 +14,7 @@ HS485 Applikation
 #include "suart.h"
 
 
-#define DEBUG 
+//#define DEBUG 
 
 
 #define UART_BAUD_RATE	19200

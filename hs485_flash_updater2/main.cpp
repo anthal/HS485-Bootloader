@@ -28,6 +28,24 @@ using namespace std;
 #define MAX_RX_FRAME_LENGTH      255
 #define CRC16_POLYGON         0x1002
 
+#define START_SIGN              ':'      /* Hex-Datei Zeilenstartzeichen */
+ 
+/* Zustaende des Bootloader-Programms */
+#define BOOT_STATE_EXIT	        0        
+#define BOOT_STATE_PARSER       1
+ 
+/* Zustaende des Hex-File-Parsers */
+#define PARSER_STATE_START      0
+#define PARSER_STATE_SIZE       1
+#define PARSER_STATE_ADDRESS    2
+#define PARSER_STATE_TYPE       3
+#define PARSER_STATE_DATA       4
+#define PARSER_STATE_CHECKSUM   5
+#define PARSER_STATE_ERROR      6
+ 
+/* Page size */
+#define SPM_PAGESIZE            64
+
 struct stData
 {
   SYSTEMTIME    sysTime;
@@ -41,6 +59,9 @@ struct stData
 
 unsigned int crc16_register;        // Register mit CRC16 Code
 
+/*
+ crc16_shift
+*/ 
 void crc16_shift(unsigned char w)
 {
   unsigned char q;
@@ -58,11 +79,17 @@ void crc16_shift(unsigned char w)
   }
 }
 
+/*
+ crc16_init
+*/ 
 void crc16_init(void)
 {
   crc16_register=0xffff;
 }
 
+/*
+ Get Modul Type
+*/
 bool GetModulType(unsigned char p_ucType, unsigned char *p_ucTypeName, int p_iMaxSize)
 {
   char ucName[50];
@@ -101,7 +128,9 @@ bool GetModulType(unsigned char p_ucType, unsigned char *p_ucTypeName, int p_iMa
   return true;
 }
 
-// Wandelt eine 32-Bit Adresse in ein 4-Byte unsigned char array um
+/*
+ Wandelt eine 32-Bit Adresse in ein 4-Byte unsigned char array um
+*/ 
 void AddressHexToChar(unsigned char *p_ucAddress, unsigned long p_ulAddress)
 {
   int i;
@@ -110,7 +139,9 @@ void AddressHexToChar(unsigned char *p_ucAddress, unsigned long p_ulAddress)
     p_ucAddress[i]=x[3-i];
 }
 
-// Wandelt ein 4-Byte char array in eine 32-Bit Adresse um
+/*
+ Wandelt ein 4-Byte char array in eine 32-Bit Adresse um
+*/ 
 void AddressCharToHex(unsigned char *p_ucAddress, unsigned long *p_ulAddress)
 {
   int i;
@@ -119,7 +150,9 @@ void AddressCharToHex(unsigned char *p_ucAddress, unsigned long *p_ulAddress)
     x[i]=p_ucAddress[3-i];
 }
 
-// Liest einen Nachrichtenframe 
+/*
+ Liest einen Nachrichtenframe 
+*/ 
 struct stData *ReadFrame(Com *m_cCom)
 {
   unsigned char ucRxEscape=false;
@@ -245,6 +278,9 @@ struct stData *ReadFrame(Com *m_cCom)
   }
 }
 
+/*
+ Show Type
+*/ 
 bool ShowType(unsigned char ucEvent)
 {
   switch(ucEvent&0x33)
@@ -279,6 +315,9 @@ bool ShowType(unsigned char ucEvent)
   }
 }
 
+/*
+ Show Datas
+*/
 void ShowData(Com *p_cCom, int p_iAnzeigeMode)
 {
   int i;
@@ -644,13 +683,17 @@ void ShowData(Com *p_cCom, int p_iAnzeigeMode)
   }
 }
 
-// Sendet ein Byte über die Schnittstelle
+/*
+ Sendet ein Byte über die Schnittstelle
+*/ 
 bool SendByte(Com *p_cCom, unsigned char p_ucByte)
 {
   return p_cCom->write(&p_ucByte,1);
 }
 
-// Sendet ein Byte über die Schnittstelle, prüft jedoch auf Sonderzeichen und wandelt diese entsprechend um
+/*
+ Sendet ein Byte über die Schnittstelle, prüft jedoch auf Sonderzeichen und wandelt diese entsprechend um
+*/ 
 bool SendDataByte(Com *p_cCom, unsigned char p_ucByte)
 {
   unsigned char c;
@@ -663,7 +706,9 @@ bool SendDataByte(Com *p_cCom, unsigned char p_ucByte)
   return SendByte(p_cCom,p_ucByte);
 }
 
-// Sendet einen Datenframe 
+/*
+ Sendet einen Datenframe 
+*/ 
 bool SendFrame(Com *p_cCom, struct stData *p_pFrameData)
 {
   int i;
@@ -699,7 +744,7 @@ bool SendFrame(Com *p_cCom, struct stData *p_pFrameData)
   if(!SendDataByte(p_cCom,p_pFrameData->ucDataLength+2))  // Framelänge
     return false;
   crc16_shift(p_pFrameData->ucDataLength+2);
-  for(i=0;i<p_pFrameData->ucDataLength;i++)       // Framedaten
+  for(i=0; i<p_pFrameData->ucDataLength; i++)       // Framedaten
   {
     if(!SendDataByte(p_cCom,p_pFrameData->ucFrameData[i]))
       return false;
@@ -714,6 +759,9 @@ bool SendFrame(Com *p_cCom, struct stData *p_pFrameData)
   return true;
 }
 
+/*
+ SendAck 
+*/
 bool SendAck(Com *p_cCom, unsigned char* p_ucReceiverAddress, unsigned char *p_ucSenderAddress, unsigned char p_ucEmpfangsfolgenummer)
 {
   struct stData stAckData;
@@ -815,7 +863,9 @@ struct stData *Send(Com *p_cCom, struct stData *p_pFrameData)
   return NULL;
 }
 
-// Setzt den Zustand eines Ausgangs an einem Module
+/*
+ Setzt den Zustand eines Ausgangs an einem Module
+*/ 
 void SetOutput(Com *p_cCom)
 { 
   struct stData pFrame;
@@ -857,6 +907,7 @@ void ExitBootloadermode(FILE *fp, Com *p_cCom)
   struct stData pFrame;
   unsigned long ulAddress;  
   
+  ulAddress = 0x1028;
   printf("Bootloadermodus beenden\n");
   printf(" Senden von '0' (Paketgroesse abfragen) an Modul 0x%08x\n",ulAddress);
   pFrame.ucStartByte=FRAME_START_LONG;
@@ -882,308 +933,380 @@ void ExitBootloadermode(FILE *fp, Com *p_cCom)
 }
 
 /************************************************************
+ In Bootloader wechseln 
+************************************************************/
+int set_bootloader (Com *p_cCom)
+{
+    struct stData pFrame;
+    unsigned long ulAddress;
+    struct stData *pReturnFrame;
+    
+    p_cCom->setTimeOut(1000);   // Timeout auf 1 Sekunde setzen, weil Antwort von HS485 PCI unregelmäßig kommt
+    printf("Modul wird upgedated\n");
+    crc16_init();
+    // Buffer leeren, damit evtl. empfangene Nachrichten gelöscht werden
+    while(ReadFrame(p_cCom));
+    
+    // Adresse angeben
+    // printf("\nAdresse(Hex): ");
+    // scanf("%x",&ulAddress);
+    ulAddress = 0x1028;
+    printf("Senden von 'u' 10mal an alle \n");
+    pFrame.ucStartByte=FRAME_START_LONG;
+    pFrame.ucControlByte=0x94;
+    pFrame.ucDataLength=2;
+    AddressHexToChar(pFrame.ucReceiverAddress,0xFFFFFFFF);
+    pFrame.ucFrameData[0]='u';		// 0x75
+    pFrame.ucFrameData[1]=0x00;   // Sensor; hier nur Dummy, da nicht erforderlich
+    for (int i=0;i<10;i++)
+    {
+        SendFrame(p_cCom,&pFrame);
+    }
+
+    printf("Senden von 'p' (Paketgroesse abfragen) an Modul 0x%08x\n",ulAddress);
+    pFrame.ucStartByte=FRAME_START_LONG;
+    pFrame.ucControlByte=0x94;
+    pFrame.ucDataLength=1;
+    AddressHexToChar(pFrame.ucReceiverAddress,ulAddress);
+    pFrame.ucFrameData[0]='p';		// 0x70
+    if( pReturnFrame = Send(p_cCom,&pFrame) )
+    {   
+        printf("Antwort vom Modul mit Adresse 0x%08x\n",ulAddress);
+        printf("Datenbyte 1 : 0x%x\n",pReturnFrame->ucFrameData[0]);
+        printf("Datenbyte 2 : 0x%x\n",pReturnFrame->ucFrameData[1]);
+        delete(pReturnFrame);
+    }
+    else
+    {
+        printf("\nERROR if send 'p': Keine Antwort vom Modul, oder Fehler beim Senden ==> EXIT \n");
+        return 1;
+    }   
+
+    printf("Senden von '0' (Paketgroesse abfragen) an Modul 0x%08x\n",ulAddress);
+    pFrame.ucStartByte=FRAME_START_LONG;
+    pFrame.ucControlByte=0x39;
+    pFrame.ucDataLength=0;
+    AddressHexToChar(pFrame.ucReceiverAddress,ulAddress);
+    AddressHexToChar(pFrame.ucSenderAddress,0x00000000);
+    SendFrame(p_cCom,&pFrame);
+    SendFrame(p_cCom,&pFrame);
+    return 0;
+}
+ 
+/************************************************************
+ Sende Programmierdaten
+************************************************************/
+void program_page (Com *p_cCom, unsigned int page, unsigned int *buf)
+{
+    unsigned int i;
+    struct stData pFrame;
+    unsigned long ulAddress;
+    unsigned int  sendefolgenummer = 0;
+    
+    
+    ulAddress = 0x1028;
+    // HS485-Header neu setzen:
+    // printf( " pFrame.ucDataLength: 0x%04x \n", pFrame.ucDataLength );
+    AddressHexToChar(pFrame.ucReceiverAddress, ulAddress);
+    pFrame.ucStartByte=FRAME_START_LONG;
+    // Set Controlbyte:
+    if ( page == 0)
+    {
+      pFrame.ucControlByte=0xB6;
+    }
+    else
+    {
+      pFrame.ucControlByte = ((sendefolgenummer * 2) & 0x06) + 0x30;
+      // printf( "sendefolgenummer: %02x\n", sendefolgenummer );
+      // printf( "pFrame.ucControlByte: %02x\n", pFrame.ucControlByte );
+      sendefolgenummer++;
+      if ( sendefolgenummer >= 4 )
+      {
+        sendefolgenummer = 0;
+      }
+    }
+    pFrame.ucFrameData[0] = 'w';
+    pFrame.ucFrameData[1] = page / 0x100;  // High-Adresse im Flash
+    pFrame.ucFrameData[2] = page % 0x100;  // Low-Adresse im Flash
+    pFrame.ucFrameData[3] = 0x40;    // Anzahl der Daten-Bytes
+    printf( "->Program HS485-Flash-Addr.: %02x%02x \n", pFrame.ucFrameData[1], pFrame.ucFrameData[2] );
+
+    // pFrame.ucDataLength = hs485_databyte + 4;   // Datenlaenge (0x46)
+    pFrame.ucDataLength = 0x40 + 4;   // Datenlaenge (0x46)
+    for (i=0; i<SPM_PAGESIZE; i+=1)
+    {
+        unsigned int w = *buf++;
+        pFrame.ucFrameData[i + 4] = w;   // Zu schreibendes Byte
+        // printf("page: 0x%04x; i: %i, w: 0x%02x\n", page, i, w);
+    }
+    Send(p_cCom,&pFrame);
+
+}
+ 
+/************************************************************
+ Umwandlung Hex String in numerischen Wert
+************************************************************/
+static unsigned int hex2num (const unsigned int * ascii, unsigned int num)
+{
+    unsigned int  i;
+    unsigned int val = 0;
+ 
+    for (i=0; i<num; i++)
+    {
+        unsigned int c = ascii[i];
+ 
+        /* Hex-Ziffer auf ihren Wert abbilden */
+        if (c >= '0' && c <= '9')            c -= '0';  
+        else if (c >= 'A' && c <= 'F')       c -= 'A' - 10;
+        else if (c >= 'a' && c <= 'f')       c -= 'a' - 10;
+ 
+        val = 16 * val + c;
+    }
+ 
+    return val;  
+}
+
+/************************************************************
  Firmwareupdate von einem Modul
 ************************************************************/
 int FirmwareUpdate(Com *p_cCom)
 { 
-  struct stData pFrame;
-  unsigned long ulAddress;
-  unsigned long FlashAddress = 0;
-  unsigned int  uiActor;
-  unsigned int  uiValue;
-  FILE          *fp;
-  unsigned long iZeile = 0;
-  unsigned int  data_len = 64;
-  unsigned int  hs485_databyte = 0;
-  unsigned int  reset_hs485_databyte = 0;
-  unsigned int  sendefolgenummer = 0;
-  struct stData *pReturnFrame;
-  // state_checksum: 
-  // -1: checksum is not correct
-  //  0: checksum is unknown
-  //  1: checksum is correct
-  unsigned int  state_checksum = 0;
-  
-  p_cCom->setTimeOut(1000);   // Timeout auf 1 Sekunde setzen, weil Antwort von HS485 PCI unregelmäßig kommt
-  printf("Modul wird upgedated\n");
-  crc16_init();
-  
-  //fp = fopen("d:\\Projekte\\HAUS_BUS\\HS485\\Module\\HS485S\\Firmware-ATmega8\\hs485s_hw1_sw2_00.hex","r");
-  fp = fopen("hs485s_hw1_sw2_00.hex","r");
-  if ( fp == NULL )
-  {
-    printf("\nERROR: Fehler beim Oeffnen des Files %s\n ",fp) ;
-    return 1;
-  }
+    /* Empfangenes Zeichen + Statuscode */
+    unsigned int c = 0, 
 
-  printf("Oeffnen des Files %s\n ",fp);
-  // Buffer leeren, damit evtl. empfangene Nachrichten gelöscht werden
-  while(ReadFrame(p_cCom));
-  
-  // Adresse angeben
-  // printf("\nAdresse(Hex): ");
-  // scanf("%x",&ulAddress);
-  ulAddress = 0x1028;
-  printf("Senden von 'u' 10mal an alle \n");
-  pFrame.ucStartByte=FRAME_START_LONG;
-  pFrame.ucControlByte=0x94;
-  pFrame.ucDataLength=2;
-  AddressHexToChar(pFrame.ucReceiverAddress,0xFFFFFFFF);
-  pFrame.ucFrameData[0]='u';		// 0x75
-  pFrame.ucFrameData[1]=0x00;   // Sensor; hier nur Dummy, da nicht erforderlich
-  for (int i=0;i<10;i++)
-  {
-    SendFrame(p_cCom,&pFrame);
-  }
+    /* Intel-HEX Zieladresse */
+    hex_addr = 0,
 
-  printf("Senden von 'p' (Paketgroesse abfragen) an Modul 0x%08x\n",ulAddress);
-  pFrame.ucStartByte=FRAME_START_LONG;
-  pFrame.ucControlByte=0x94;
-  pFrame.ucDataLength=1;
-  AddressHexToChar(pFrame.ucReceiverAddress,ulAddress);
-  pFrame.ucFrameData[0]='p';		// 0x70
-  if( pReturnFrame = Send(p_cCom,&pFrame) )
-  {   
-    printf("Antwort vom Modul mit Adresse 0x%08x\n",ulAddress);
-    printf("Datenbyte 1 : 0x%x\n",pReturnFrame->ucFrameData[0]);
-    printf("Datenbyte 2 : 0x%x\n",pReturnFrame->ucFrameData[1]);
-    delete(pReturnFrame);
-  }
-  else
-  {
-    printf("\nERROR if send 'p': Keine Antwort vom Modul, oder Fehler beim Senden ==> EXIT \n");
-    ExitBootloadermode(fp, p_cCom);
-    return 1;
-  }   
+    /* Zu schreibende Flash-Page */
+    flash_page = 0,
 
-  printf("Senden von '0' (Paketgroesse abfragen) an Modul 0x%08x\n",ulAddress);
-  pFrame.ucStartByte=FRAME_START_LONG;
-  pFrame.ucControlByte=0x39;
-  pFrame.ucDataLength=0;
-  AddressHexToChar(pFrame.ucReceiverAddress,ulAddress);
-  AddressHexToChar(pFrame.ucSenderAddress,0x00000000);
-  SendFrame(p_cCom,&pFrame);
-  SendFrame(p_cCom,&pFrame);
+    /* Intel-HEX Checksumme zum Ueberpruefen des Daten */
+    hex_check = 0,
+
+    /* Positions zum Schreiben in der Datenpuffer */
+    flash_cnt = 0;
+
+    /* temporaere Variable */
+    unsigned int temp,
+
+    /* Flag zum steuern des Programmiermodus */
+    boot_state = BOOT_STATE_EXIT,
+
+    /* Empfangszustandssteuerung */
+    parser_state = PARSER_STATE_START,
+
+    /* Flag zum ermitteln einer neuen Flash-Page */
+    flash_page_flag = 1,
+
+    /* Datenpuffer fuer die Hexdaten*/
+    flash_data[SPM_PAGESIZE], 
+
+    /* Position zum Schreiben in den HEX-Puffer */
+    hex_cnt = 0, 
+
+    /* Puffer fuer die Umwandlung der ASCII in Binaerdaten */
+    hex_buffer[5], 
+
+    /* Intel-HEX Datenlaenge */
+    hex_size = 0,
+
+    /* Zaehler fuer die empfangenen HEX-Daten einer Zeile */
+    hex_data_cnt = 0, 
+
+    /* Intel-HEX Recordtype */
+    hex_type = 0, 
+
+    /* empfangene HEX-Checksumme */
+    hex_checksum=0;
+
+    /* Funktionspointer auf 0x0000 */
+    void (*start)( void ) = 0x0000; 
  
-  // Firmwaredaten schreiben 1. 64 Byte:
-  // Autor: Klaus Wachtler (mfgkw)
-  // Datum: 09.09.2010 22:11 
-  // http://www.mikrocontroller.net/topic/189911
-  unsigned int bytecount_intel_hex, bytecount_hs485, address_intel_hex, recordtype_intel_hex, checksum;
-  bytecount_hs485 = 0;
-  
-  /* Intel-Hex-File einlesen und per HS485 senden */
-  while( "endless" )
-  {
-    iZeile++;
-    unsigned int retval;
-    /* Read Header from Intel-Hex-File: */
-    retval = fscanf( fp, " :%2x%4x%2x", &bytecount_intel_hex, &address_intel_hex, &recordtype_intel_hex );
-    printf( "fscanf: bytecount_intel_hex: 0x%x, address_intel_hex: 0x%x, recordtype_intel_hex: 0x%x \n", bytecount_intel_hex, address_intel_hex, recordtype_intel_hex );
-    if( retval != 3 )
+    /* Fuellen der Puffer mit definierten Werten */
+    memset(hex_buffer, 0x00, sizeof(hex_buffer));
+    memset(flash_data, 0xFF, sizeof(flash_data));
+ 
+    FILE *fp;
+    char filename[80];
+    strcpy(filename, "hs485s_hw1_sw2_00.hex");
+    // strcpy(filename, "hs485lx1_hw0_sw1_01.hex");
+    fp = fopen(filename, "r");
+    if ( fp == NULL )
     {
-      fprintf( stderr, "\n ERROR: Zeilenstart nicht lesbar in Zeile %lu (retval: %lu) \n", iZeile, retval );
-      ExitBootloadermode(fp, p_cCom);
-      return 1;
+        printf("\nFehler beim Oeffnen des Files '%s'\n ", filename) ;
     }
-    
-    /* ERROR: Zeile zu lang: */  
-    else if( bytecount_intel_hex > data_len )
+    else
     {
-      fprintf( stderr, "\n ERROR: Zeile zu lang: bytecount_intel_hex: 0x%2x, data_len: 0x%2x\n", bytecount_intel_hex, data_len );
-      ExitBootloadermode(fp, p_cCom);
-      return 1;
-    }
-    
-    /* Recordtyp == 0: Data Record / Nutzdaten: */  
-    else if( recordtype_intel_hex == 0 )
-    {
-      bytecount_hs485 = bytecount_intel_hex + bytecount_hs485;
-      // Daten aud Intel-Hex-Header merken, bis zum ersten vollen Block ==> fertig zum Senden über RS232:
-      // if ( hs485_databyte == 0 && reset_hs485_databyte == 1 )
-      if ( hs485_databyte == 0 )
-      {
-        pFrame.ucStartByte = FRAME_START_LONG;
-        // Set Controlbyte:
-        if ( FlashAddress == 0)
-        {
-          pFrame.ucControlByte=0xB6;
-        }
-        else
-        {
-          pFrame.ucControlByte = ((sendefolgenummer * 2) & 0x06) + 0x30;
-          // printf( "sendefolgenummer: %02x\n", sendefolgenummer );
-          // printf( "pFrame.ucControlByte: %02x\n", pFrame.ucControlByte );
-          sendefolgenummer++;
-          if ( sendefolgenummer >= 4 )
-          {
-            sendefolgenummer = 0;
-          }
-        }
+        printf("Oeffnen des Files '%s'\n ", filename);  
         
-		printf( " pFrame.ucDataLength: 0x%04x \n", pFrame.ucDataLength );
-        AddressHexToChar(pFrame.ucReceiverAddress,ulAddress);
-        pFrame.ucFrameData[0] = 'w';
-        pFrame.ucFrameData[1] = address_intel_hex / 0x100;  // High-Adresse im Flash
-        pFrame.ucFrameData[2] = address_intel_hex % 0x100;  // Low-Adresse im Flash
-        pFrame.ucFrameData[3] = 0x40;    // Anzahl der Daten-Bytes
-        printf( " HS485-Flash-Addr.: %02x%02x \n", pFrame.ucFrameData[1], pFrame.ucFrameData[2] );
-		bytecount_hs485 = 0;
-      } 
-      
-      printf( "=>address_intel_hex 0x%04x, FlashAddress: 0x%04x, hs485_databyte: 0x%04x\n", address_intel_hex, FlashAddress, hs485_databyte );
-      // Wenn Adresse aus Intel-Hex-File anders, als erwartet ==> HS485 Daten mit 0xFF füllen:
-      if ((FlashAddress != address_intel_hex) & (hs485_databyte != 0))  
-      {
-        // while( bytecount_hs485 < 64 )
-        while( hs485_databyte < 64 )
+        // Wechsle zu Bootloader: 
+        // if (set_bootloader (Com p_cCom) != 0)
+        if (set_bootloader (p_cCom) != 0)
         {
-          printf( "hs485_databyte: 0x%02x, bytecount_hs485: 0x%02x == 0xFF\n", hs485_databyte, bytecount_hs485 );
-          pFrame.ucFrameData[hs485_databyte + 4] = 0xFF;     // Zu schreibendes Byte
-          hs485_databyte++;
-          bytecount_hs485++;
+            ExitBootloadermode(fp, p_cCom);
+            return 1;
         }
-        pFrame.ucDataLength = hs485_databyte + 4;   // Datenlaenge (0x46)
-        hs485_databyte = 0;
-        reset_hs485_databyte = 1; 
-        printf( "Set: hs485_databyte = 0 \n" );
-        // Send datas per HS485
-        printf( "==>Send RS485 - ucDataLength: 0x%02x\n", pFrame.ucDataLength );
-        printf( "Type: 0x%02x, HS485-Flash-Addr.: %02x%02x \n", pFrame.ucFrameData[0], pFrame.ucFrameData[1], pFrame.ucFrameData[2] );
-        Send(p_cCom,&pFrame);
-        state_checksum = 0;
 
-        // HS485-Header neu setzen:
-		printf( " pFrame.ucDataLength: 0x%04x \n", pFrame.ucDataLength );
-        AddressHexToChar(pFrame.ucReceiverAddress,ulAddress);
-        pFrame.ucFrameData[0] = 'w';
-        pFrame.ucFrameData[1] = address_intel_hex / 0x100;  // High-Adresse im Flash
-        pFrame.ucFrameData[2] = address_intel_hex % 0x100;  // Low-Adresse im Flash
-        pFrame.ucFrameData[3] = 0x40;    // Anzahl der Daten-Bytes
-        printf( " HS485-Flash-Addr.: %02x%02x \n", pFrame.ucFrameData[1], pFrame.ucFrameData[2] );
-		bytecount_hs485 = 0;
-      }
+        boot_state = BOOT_STATE_PARSER;        
+        do
+        {
+            c = fgetc(fp);
+            // if( !(c & UART_NO_DATA) )
+            // if( (c ) )
+            // {
+                // printf("c=%c, boot_state:%i, parser_state:%i\n ", c, boot_state, parser_state);    
+            // }
+             /* Programmzustand: Parser */
+             if (boot_state == BOOT_STATE_PARSER)
+             {
+                  // printf("BOOT_STATE_PARSER\n");
+                  switch(parser_state)
+                  {
+                      /* Warte auf Zeilen-Startzeichen */
+                      case PARSER_STATE_START:			
+                          if ((int)c == START_SIGN) 
+                          {
+                              // printf("PARSER_STATE_START\n");
+                              parser_state = PARSER_STATE_SIZE;
+                              hex_cnt = 0;
+                              hex_check = 0;
+                          }
+                          break;
+                          
+                      /* Parse Datengroesse */
+                      case PARSER_STATE_SIZE:	
+                          hex_buffer[hex_cnt++] = (int)c;
+                          if (hex_cnt == 2)
+                          {
+                              parser_state = PARSER_STATE_ADDRESS;
+                              hex_cnt = 0;
+                              hex_size = (int)hex2num(hex_buffer, 2);
+                              if (hex_size != 0x10)
+                              {
+                                  printf("- hex_size: 0x%02x\n", hex_size);
+                              }
+                              hex_check += hex_size;
+                           }
+                           break;
+                           
+                      /* Parse Zieladresse */
+                      case PARSER_STATE_ADDRESS:
+                          hex_buffer[hex_cnt++] = (int)c;
+                          if (hex_cnt == 4)
+                          {
+                              parser_state = PARSER_STATE_TYPE;
+                              hex_cnt = 0;
+                              hex_addr = hex2num(hex_buffer, 4);
+                              printf("-- hex_addr: 0x%04x\n", hex_addr);
+                              hex_check += (int) hex_addr;
+                              hex_check += (int) (hex_addr >> 8);
+                              if (flash_page_flag) 
+                              {
+                                  flash_page = hex_addr - hex_addr % SPM_PAGESIZE;
+                                  flash_page_flag = 0;
+                              }
+                           }
+                           break;
+                           
+                      /* Parse Zeilentyp */
+                      case PARSER_STATE_TYPE:	
+                           hex_buffer[hex_cnt++] = (int)c;
+                           if (hex_cnt == 2)
+                           {
+                               hex_cnt = 0;
+                               hex_data_cnt = 0;
+                               hex_type = (int)hex2num(hex_buffer, 2);
+                               if (hex_type != 0)
+                               {
+                                   printf("- hex_type: 0x%02x\n", hex_type);
+                               }
+                               hex_check += hex_type;
+                               switch(hex_type)
+                               {
+                                   case 0: parser_state = PARSER_STATE_DATA; break;
+                                   case 1: parser_state = PARSER_STATE_CHECKSUM; break;
+                                   default: parser_state = PARSER_STATE_DATA; break;
+                               }
+                           }
+                           break;
+                           
+                      /* Parse Flash-Daten */
+                      case PARSER_STATE_DATA:
+                          hex_buffer[hex_cnt++] = (int)c;
+                          if (hex_cnt == 2)
+                          {
+                              printf(".");
+                              hex_cnt = 0;
+                              flash_data[flash_cnt] = (int)hex2num(hex_buffer, 2);
+                              hex_check += flash_data[flash_cnt];
+                              flash_cnt++;
+                              hex_data_cnt++;
+                              if (hex_data_cnt == hex_size)
+                              {
+                                  parser_state = PARSER_STATE_CHECKSUM;
+                                  hex_data_cnt = 0;
+                                  hex_cnt = 0;
+                              }
+                              /* Puffer voll -> schreibe Page */
+                              if (flash_cnt == SPM_PAGESIZE)
+                              {
+                                  printf("Puffer voll -> schreibe Page\n\r");
+                                  program_page(p_cCom, (int)flash_page, flash_data);
+                                  memset(flash_data, 0xFF, sizeof(flash_data));
+                                  flash_cnt = 0;
+                                  flash_page_flag = 1;
+                              }
+                          }
+                          break;
+                          
+                      /* Parse Checksumme */                             
+                      case PARSER_STATE_CHECKSUM:
+                          hex_buffer[hex_cnt++] = (int)c;
+                          if (hex_cnt == 2)
+                          {
+                              hex_checksum = (int)hex2num(hex_buffer, 2);
+                              hex_check += hex_checksum;
+                              hex_check &= 0x00FF;
 
-      unsigned int own_checksum = 0;
-      
-      FlashAddress = address_intel_hex;
-      bytecount_hs485 = bytecount_intel_hex + bytecount_hs485;
-      printf( " bytecount_hs485  1: 0x%04x,", bytecount_hs485 );
-      printf( " address_intel_hex: 0x%04x\n", address_intel_hex );
-      own_checksum -= bytecount_intel_hex;
-      own_checksum -= ( address_intel_hex & 0xFF ) + (address_intel_hex >> 8);
-      own_checksum -= recordtype_intel_hex;
-      printf( "bytecount_intel_hex: 0x%04x \n", bytecount_intel_hex );
-      printf( "Write Data Bytes... \n");
-      unsigned int iDatabyte;
-      for( iDatabyte=0; iDatabyte < bytecount_intel_hex; ++iDatabyte )
-      {
-        unsigned int c;
-      
-        // printf( "\n iDatabyte: %04d", iDatabyte );
-        if ( fscanf( fp, "%2x", &c ) != 1 )
-        {
-          fprintf( stderr, "\nERROR: Zeichen %d in Zeile %lu nicht lesbar\n", iDatabyte, iZeile);
-          ExitBootloadermode(fp, p_cCom);
-          return 1;
-        }
-        else
-        {
-          // ok, Zeichen gelesen
-          own_checksum -= c;
-          pFrame.ucFrameData[hs485_databyte + 4] = c;   // Zu schreibendes Byte
-          if ( address_intel_hex >= 0x1600 )
-          {  
-            // printf( "c: 0x%02x, address_intel_hex: 0x%04x, \n", c, address_intel_hex );
-            printf( "c: 0x%02x, address_intel_hex: 0x%04x, ", pFrame.ucFrameData[hs485_databyte + 4], address_intel_hex );
-            // printf( "c: 0x%02x, address_intel_hex: 0x%04x, ", pFrame.ucFrameData[6], address_intel_hex );
-            printf( "hs485_databyte: 0x%02x, FlashAddress: 0x%02x\n", hs485_databyte, FlashAddress );
-          }
-          hs485_databyte++;
-          FlashAddress++;
-          
-          if (hs485_databyte > 63)
-          {
-            pFrame.ucDataLength = hs485_databyte + 4;   // Datenlaenge (0x46)
-            hs485_databyte = 0;
-            reset_hs485_databyte = 1; 
-            printf( "=>HS485-Record complete: hs485_databyte > 63 \n" );
-            printf( "=>Send HS485-Record: len:%x, addr:%x%x \n\n", pFrame.ucDataLength, pFrame.ucFrameData[1], pFrame.ucFrameData[2] );
-          }
-        }  
-      }
-      
-      /* Checksumme vergleichen */  
-      if( fscanf( fp, "%2x", &checksum ) != 1 )
-      {
-        fprintf( stderr, "\n ERROR: Lesefehler bei Checksumme in Zeile %lu\n", iZeile );
-        state_checksum = -1;
-        ExitBootloadermode(fp, p_cCom);
-        return 1;
-      }
-      else
-      {
-        state_checksum = 1;
-      }
-      
-      // Send datas per HS485
-      if ( hs485_databyte == 0 && state_checksum == 1 )
-      {
-        printf( "==>Send RS485 - ucDataLength: 0x%02x\n", pFrame.ucDataLength );
-        printf( "Type: 0x%02x, HS485-Flash-Addr.: %02x%02x \n", pFrame.ucFrameData[0], pFrame.ucFrameData[1], pFrame.ucFrameData[2] );
-        Send(p_cCom,&pFrame);
-        state_checksum = 0;
-      }
-    } // Recordtyp == 0: Data Record / Nutzdaten
-    
-    /* Satztyp: End of File Record */  
-    else if( recordtype_intel_hex == 1 )
-    {
-      int RestAddress = FlashAddress % 64;
-      printf( "-End of file erreicht, FlashAddress:0x%04x, RestAdress:0x%02x\n", FlashAddress, RestAddress );
-			printf( "-Send RS485 (End of file): hs485_databyte 0x%02x\n", hs485_databyte );
-      if( pReturnFrame = Send(p_cCom,&pFrame) )
-      {   
-        printf("-Antwort vom Modul mit Adresse 0x%08x\n",ulAddress);
-        printf("-Datenbyte 1 : 0x%x\n",pReturnFrame->ucFrameData[0]);
-        printf("-Datenbyte 2 : 0x%x\n",pReturnFrame->ucFrameData[1]);
-        delete(pReturnFrame);
-      }
-      else
-      {
-        printf("\nERROR (End of File Record): Keine Antwort vom Modul, oder Fehler beim Senden ==> EXIT \n");
-        ExitBootloadermode(fp, p_cCom);
-        return 1;
-      }           
-      
-			if ( RestAddress != 0 )
-      {
-        int i;
-        for( i=0; i < (64 - RestAddress); ++i )       
-        {
-          printf( "- Write '0xFF' in RestAddress+i: %02d,%02d\n", RestAddress + i, i );
-          pFrame.ucFrameData[RestAddress + i + 4] = 0xff;           // Zu schreibenden Bytes
-        }
-        printf( "- Send RS485: FlashAddress %02x\n", FlashAddress );
-        if( pReturnFrame = Send(p_cCom,&pFrame) )
-        {   
-          printf("- Antwort vom Modul mit Adresse 0x%08x\n",ulAddress);
-          printf("- Datenbyte 1 : 0x%x\n",pReturnFrame->ucFrameData[0]);
-          printf("- Datenbyte 2 : 0x%x\n",pReturnFrame->ucFrameData[1]);
-          delete(pReturnFrame);
-        }
-        else
-        {
-          printf("\nERROR if send RestAddress: Keine Antwort vom Modul, oder Fehler beim Senden ==> EXIT \n");
-          ExitBootloadermode(fp, p_cCom);
-          return 1;
-        }   
-      }
-      break;  
-      // Mit break können auch Schleifen vorzeitig beendet werden. 
-    } // Satztyp = 1: End of File Record 
-  }   // while ( "endless" )
-  ExitBootloadermode(fp, p_cCom);
+                              /* Dateiende -> schreibe Restdaten */ 
+                              if (hex_type == 1)
+                              {
+                                  printf("Dateiende -> schreibe Restdaten\n\r");
+                                  program_page(p_cCom, (int)flash_page, flash_data);
+                                  boot_state = BOOT_STATE_EXIT;
+                              }
+
+                              /* Ueberpruefe Checksumme -> muss '0' sein */
+                              if (hex_check == 0) 
+                              {
+                                  // printf("Checksum OK\n");
+                                  parser_state = PARSER_STATE_START;
+                              }
+                              else
+                              {                                  
+                                  printf("Checksum ERROR\n");
+                                  parser_state = PARSER_STATE_ERROR;
+                              }
+                          }
+                          break;
+
+                      /* Parserfehler (falsche Checksumme) */
+                      case PARSER_STATE_ERROR:
+                          printf("Parserfehler (falsche Checksumme)\n");
+                          return 1;
+                          break;			
+                      default:
+                          break;
+                  }  // switch
+             }  // if
+        }  // do
+        while (boot_state!=BOOT_STATE_EXIT);
+    }  // else
+ 
+    printf("Exit to Bootloadermode of AVR!\n\r");
+    ExitBootloadermode(fp, p_cCom);
+ 
+    return 0;
 }
 
 /* 

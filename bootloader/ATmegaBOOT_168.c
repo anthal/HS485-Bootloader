@@ -54,8 +54,43 @@ void AddressCharToHex(unsigned char *p_ucAddress, unsigned long *p_ulAddress);
 
 unsigned char	temp;              /* Variable */
 unsigned int  crc16_register;				// Register mit CRC16 Code	
-// Start pointer NUR deklarieren
-static void (*start_app) (void);									
+
+/*********************************************************************************** 
+ Program Page of Controller
+***********************************************************************************/
+void program_page (uint32_t page, uint8_t *buf)
+{
+    uint16_t i;
+    uint8_t sreg;
+ 
+    /* Disable interrupts */
+    sreg = SREG;
+    cli();
+ 
+    eeprom_busy_wait ();
+ 
+    boot_page_erase (page);
+    boot_spm_busy_wait ();      /* Wait until the memory is erased. */
+ 
+    for (i=0; i<SPM_PAGESIZE; i+=2)
+    {
+        /* Set up little-endian word. */
+        uint16_t w = *buf++;
+        w += (*buf++) << 8;
+ 
+        boot_page_fill (page + i, w);
+    }
+ 
+    boot_page_write (page);     /* Store buffer in flash page.		*/
+    boot_spm_busy_wait();       /* Wait until the memory is written.*/
+ 
+    /* Reenable RWW-section again. We need this if we want to jump back */
+    /* to the application after bootloading. */
+    boot_rww_enable ();
+ 
+    /* Re-enable interrupts (if they were ever enabled). */
+    SREG = sreg;
+}
 	
 /*********************************************************************************** 
  Hauptprogramm
@@ -64,8 +99,6 @@ int main()
 {
 	unsigned int ch = 0;     /* Empfangenes Zeichen + Statuscode */
 	uint16_t v, w;
-	uint8_t *bufPtr;
-	uint16_t addrPtr;
 	
 	unsigned long ulAddress1;
 	bool address_ok;
@@ -86,12 +119,12 @@ int main()
 	union address_union {
 	  uint16_t word;
 	  uint8_t  byte[2];
-  } address;
+	} address;
 
 	union to_address_union {
 		uint16_t word[2];
 		uint8_t  byte[4];
-  } to_address;
+	} to_address;
 
 	union length_union {
 		uint16_t word;
@@ -99,11 +132,11 @@ int main()
 	} length;	
 	
 	// pointer HIER initialisieren:
-	start_app = ( void *) 0x0000;    /* Pointer auf 0x0000 */
+	void (*start)( void ) = 0x0000;        /* Funktionspointer auf 0x0000 */
 	
 	setup();	
 	
-	while (1)
+	while ( 1 )
 	{
 		ch = uart_getc();
 		// break;
@@ -206,7 +239,6 @@ int main()
 								//EIND = 0;
 								SendAck(2, (ControlByte >> 1) & 0x03);
 								sputs("\n\r 0x67 empfangen ==> Programming fertig" );
-								//appStart();
 								break;
 							}
 							if (FrameData[0] == 0x70)
@@ -242,28 +274,7 @@ int main()
 								
 								if ((length.byte[0] & 0x01)) length.word++;	//Even up an odd number of bytes
 								
-								cli();	//Disable interrupts, just to be sure
-								
-								// Copy buffer into programming buffer
-								bufPtr = buff;
-								addrPtr = (uint16_t)(void*)address.word;
-								// ATmega328: SPM_PAGESIZE = 128
-								ch = SPM_PAGESIZE / 2;
-								do 
-								{
-									uint16_t a;
-									a = *bufPtr++;
-									a |= (*bufPtr++) << 8;
-									__boot_page_fill_short((uint16_t) (void*)addrPtr, a);
-									addrPtr += 2;
-								} 
-								while (--ch);
-
-								// Write from programming buffer
-								__boot_page_write_short((uint16_t) (void*)address.word);
-								boot_spm_busy_wait();
-
-								sei();	// Enable interrupts, just to be sure
+								program_page(address.word, buff);
 								
 								//if (++error_count == MAX_ERROR_COUNT)
 								//  appStart();
@@ -301,12 +312,23 @@ int main()
 
 	/* Interrupt Vektoren wieder gerade biegen */
 	cli();  // disable global interrupts
+	
+	/* ATmega8  */
 	temp = GICR;
 	GICR = temp | (1<<IVCE);
 	GICR = temp & ~(1<<IVSEL);
-
-	/* Rücksprung zur Adresse 0x0000 */
-	start_app(); 
+ 
+    /* ATmega88  */
+	/*
+    temp = MCUCR;
+    MCUCR = temp | (1<<IVCE);
+    MCUCR = temp & ~(1<<IVSEL);
+    */
+	
+    /* Reset */
+    /* Rücksprung zur Adresse 0x0000 */
+	start();
+	
 	return 0;
 }
 
@@ -499,16 +521,24 @@ void setup(void)
   //rgb_led(0,0,1);
 	
 	/* Interrupt Vektoren verbiegen */
+	
 	char sregtemp = SREG;
 	cli();   // disable global interrupts
+	/* ATmega8  */
 	temp = GICR;
 	GICR = temp | (1<<IVCE);
 	GICR = temp | (1<<IVSEL);
+	/* ATmega88  */
+	/*
+	temp = MCUCR;
+    MCUCR = temp | (1<<IVCE);
+    MCUCR = temp | (1<<IVSEL);
+	*/
+	
 	SREG = sregtemp;
 	
 	/* Einstellen der Baudrate und aktivieren der Interrupts */
 	uart_init( UART_BAUD_SELECT(UART_BAUD_RATE,F_CPU) ); 
-	
 	suart_init();
 	sei();  // enable global interrupts
 
