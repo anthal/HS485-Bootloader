@@ -1,3 +1,16 @@
+/************************
+*  HS485 Bootloader
+*************************/
+
+/************************
+ ToDo
+ - Device Adresse in EEPROM oder in spezielle Flash-Speicher Adresse
+ - in SendAck 0x51 ersetzen
+ - 
+*************************/
+
+
+
 #include <avr/io.h>
 #include <avr/interrupt.h>
 //#include <avr/wdt.h>
@@ -24,7 +37,7 @@
 #define LED2     PIND5  /* LED rot-rechts */
 #define RS485    PIND2  /* LED rot-oben */
 
-#define LED_red   PINB0 /* RGB-LED rot  ==> Error ?? */
+#define LED_red   PINB3 /* RGB-LED rot  ==> Error */
 #define LED_blue  PINB2 /* RGB-LED blau ==> Bootloader */
 #define LED_green PINB5 /* RGB-LED grün ==> Anwendungsprogramm */
 
@@ -241,6 +254,7 @@ int main()
 								sputs("\n\r 0x67 empfangen ==> Programming fertig" );
 								break;
 							}
+                            // Vorbereitung Programming:
 							if (FrameData[0] == 0x70)
 							{
 								// Send ACK
@@ -248,6 +262,8 @@ int main()
 								#ifdef DEBUG 
 									sputs("\n\r 0x70 empfangen ==> Vorbereitung Programming" );
 								#endif	
+								// kurz warten
+								_delay_ms(4);
 							}								
 							// Program Flash:	
 							if (FrameData[0] == 0x77 && address_ok == true)
@@ -352,6 +368,14 @@ void SendAck(int typ, unsigned char Empfangsfolgenummer)
 	//_delay_ms(1);
 	
 	ControlByte = (( Empfangsfolgenummer & 0x03 ) << 5 ) | 0x11;
+	// NUR zum TESTEN!!! Bitte fixen und dann entfernen!!
+	ControlByte = 0x52;
+	
+	#ifdef DEBUG 
+	  //sputs("Controlbyte:0x%02x ", ControlByte);
+	  sputs("\nSend Controlbyte: ");
+	  // printf("Controlbyte:%02x ", stAckData.ucControlByte);
+	#endif	
 	// printf("Controlbyte:%02x ", stAckData.ucControlByte);
 	DataLength = 0;
 	StartByte = FRAME_START_SHORT;
@@ -390,6 +414,7 @@ void SendAck(int typ, unsigned char Empfangsfolgenummer)
 	crc16_shift(0);
 	// CRC16-Checksumme:
 	SendDataByte((crc16_register >> 8) & 0xff);	
+	_delay_ms(1);
 	SendDataByte((crc16_register) & 0xff);
 	
 	// _delay_ms(2);
@@ -517,11 +542,7 @@ void setup(void)
 	// Nicht Senden:
 	LED_PORT &= ~_BV(RS485);
 
-	// RGB LED an:
-  //rgb_led(0,0,1);
-	
 	/* Interrupt Vektoren verbiegen */
-	
 	char sregtemp = SREG;
 	cli();   // disable global interrupts
 	/* ATmega8  */
@@ -542,11 +563,10 @@ void setup(void)
 	suart_init();
 	sei();  // enable global interrupts
 
- 	//rgb_led(0,0,0);
-	sputs("\n\rBootloader Setup" );
+	sputs("\n\rBootloader Setup\n" );
 	//_delay_ms(1000);
 	// RGB LED Blau an:
-  rgb_led(0,0,1);
+    rgb_led(0,0,1);
 
 }
 

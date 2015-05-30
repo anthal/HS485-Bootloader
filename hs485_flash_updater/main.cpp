@@ -1678,15 +1678,12 @@ int main(int argc, char *argv[])
             }
             */
             
-            unsigned int device_address;  
-            // unsigned char intel_hex_filename[64];  
-            unsigned char intel_hex_filename;  
-            
-            device_address = atoi(argv[3]);  
-            // intel_hex_filename = argv[4];  
-            // FirmwareUpdate(&cCom, device_address, intel_hex_filename);
+            unsigned long device_address;  
+            /* Convert Target Address */
+            sscanf(argv[3], "%x", &device_address);
+            printf("device_address argv3: %s \n", argv[3]);
+            printf("device_address long : 0x%x \n", device_address);
             FirmwareUpdate(&cCom, device_address, argv[4]);
-            
         }
         else if ( argc == 2 )
         {        

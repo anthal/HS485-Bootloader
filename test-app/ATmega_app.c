@@ -1,7 +1,14 @@
-/*
-HS485 Applikation
+/************************
+*  HS485 Applikation
+************************/
 
-*/
+/************************
+ ToDo
+ - Interruptsteuerung beim UART-Empfang ==> OK, war bereits realisiert
+ - Device Adresse in EEPROM oder in spezielle Flash-Speicher Adresse
+ - in SendAck 0x51 ersetzen
+ - 
+*************************/
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -16,6 +23,7 @@ HS485 Applikation
 
 //#define DEBUG 
 
+#define OWN_ADDRESS	  0x1029
 
 #define UART_BAUD_RATE	19200
  
@@ -32,7 +40,7 @@ HS485 Applikation
 #define LED2     PIND5
 #define RS485    PIND2
 
-#define LED_red   PINB0
+#define LED_red   PINB3
 #define LED_blue  PINB2
 #define LED_green PINB5
 
@@ -88,7 +96,7 @@ unsigned char DataLength;
 unsigned char FramePointer;
 // unsigned int  LocalCRCRegister;
 unsigned int  crc16_register;				// Register mit CRC16 Code
-//unsigned uint16_t  crc16_register;				// Register mit CRC16 Code
+//unsigned uint16_t  crc16_register;		// Register mit CRC16 Code
 unsigned char FrameData[MAX_RX_FRAME_LENGTH];
 uint8_t SenderAddress[4];
 //uint8_t buff[256];
@@ -96,7 +104,6 @@ uint8_t SenderAddress[4];
 //uint8_t bootuart = 0;
 //uint8_t error_count = 0;
  
-//void (*bootloader)( void ) = 0x0C00;  // Achtung Falle: Hier Word-Adresse
 typedef void (*boot_reset_fptr_t)(void);
 boot_reset_fptr_t bootloader = (boot_reset_fptr_t) 0x0C00;
 
@@ -110,27 +117,36 @@ int main()
 	bool address_ok;
   
 	setup();
-  
-	sei();
 
 	sputs("\n\rHier ist das Anwendungsprogramm...");
+	// gruen:
 	rgb_led(0,1,0);  /* LED gruen ==> ON */
-	//bootloader();
+    unsigned int state_update = 0;
 	
 	while (1) 
 	{
 		ch = uart_getc();
-		
 		if ( ch & UART_NO_DATA )
 		{
-			#ifdef DEBUG 
-			  //sputs("\nUART no data!");
-			#endif	
-			//Segment_led(0);
+		    // Idle: Recv No Datas:
+			// ==> Place for Idle code:
+            if ( state_update == 0 )
+            {
+                //rgb_led(0,1,0);  // LED gruen ==> ON 
+                //_delay_ms(500);
+                //rgb_led(0,0,1);  // LED blau ==> ON 
+                //_delay_ms(500);
+                //rgb_led(1,0,0);  // LED rot ==> ON 
+                //_delay_ms(200);
+                #ifdef DEBUG 
+                  //sputs("\nUART no data!");
+                #endif	
+                //Segment_led(0);
+            }
  		}
 		else
 		{
-		    
+            state_update = 1;
 			#ifdef DEBUG 
 			  // output of receives character:
 			  //sputchar(ch);
@@ -172,10 +188,8 @@ int main()
 					crc16_shift(ch);
 					#ifdef DEBUG 
 						sputs("\nZiel-Adressbytes empfangen");
-						
 					#endif	
 					Segment_led(2);
-
 				}
 				
 				// Controllbyte empfangen
@@ -186,18 +200,24 @@ int main()
 					crc16_shift(ch);
 					AddressCharToHex(to_address.byte, &ulAddress1);
 					#ifdef DEBUG 
-  					sputs("\nControllbyte empfangen");
+						sputs("\nControllbyte empfangen");
 					#endif	
 					Segment_led(3);
 					// Adresse mit der Eigenen vergleichen:
 					//if (ulAddress1 == 0x1029 )		
-					if (ulAddress1 == 0x1028 )		
+					if (ulAddress1 == OWN_ADDRESS )		
 					{
 						address_ok = true;
 						#ifdef DEBUG 
 							sputs("\nAdresse OK");
 						#endif	
+						sputs("\nAdresse OK");
 						Segment_led(4);
+					}
+					else
+					{
+						sputs("\nAdresse Falsch");
+                        address_ok = false;
 					}
 				}
 				
@@ -228,63 +248,111 @@ int main()
 				
 				else // Daten empfangen
 				{
-					FrameData[FramePointer] = ch;
-					crc16_shift(ch);
-					
-					// Daten komplett empfangen
-					if (FramePointer == (DataLength - 1))		
+				    if ( address_ok == true )
 					{
-						crc16_shift(0);
-						crc16_shift(0);
-						FramePointer = 0;
-						AddressPointer = 0;
-						#ifdef DEBUG 
-							sputs("\nDaten komplett empfangen");
-						#endif	
-						Segment_led(7);
+						FrameData[FramePointer] = ch;
+						crc16_shift(ch);
 						
-						// Checksumme überprüfen
-						if (crc16_register == 0)
-						{	
-						    Segment_led(8);
-							// Flash Block size:
-							if (FrameData[0] == 0x70)
-							{
-								// Send ACK
-								SendAck(2, (ControlByte >> 1) & 0x03);
-								#ifdef DEBUG 
-									sputs("\nSprung zum Bootloader");
-								#endif	
-								Segment_led(9);
-								// kurz warten
-								_delay_ms(4);
-								// LED Blau ==> ON	
-								rgb_led(0,0,1);	
-								// Sprung zum Bootloader:
-								bootloader();
-							}	
+						// Daten komplett empfangen
+						if (FramePointer == (DataLength - 1))		
+						{
+							crc16_shift(0);
+							crc16_shift(0);
+							FramePointer = 0;
+							AddressPointer = 0;
+							#ifdef DEBUG 
+								sputs("\nDaten komplett empfangen");
+							#endif	
+							Segment_led(7);
 							
-							// Programming fertig:	
-							if ( FrameData[0] == 0x67 )
+							// Checksumme überprüfen
+							if (crc16_register == 0)
+							{	
+								Segment_led(8);
+
+								// Programming fertig:	
+								if ( FrameData[0] == 0x67 )
+								{
+									SendAck(1, (ControlByte >> 1) & 0x03);
+								}
+								
+								// Flash Block size:
+								if (FrameData[0] == 0x70)
+								{
+									// Send ACK
+									SendAck(2, (ControlByte >> 1) & 0x03);
+									#ifdef DEBUG 
+										sputs("\nSprung zum Bootloader");
+									#endif	
+									Segment_led(9);
+									// kurz warten
+									_delay_ms(4);
+									// LED Blau ==> ON	
+									//rgb_led(0,0,1);	
+									// Sprung zum Bootloader:
+									bootloader();
+								}	
+								
+								// Set Aktor:	
+								if ( FrameData[0] == 0x73 )
+								{
+									SendAck(2, (ControlByte >> 1) & 0x03);
+									// Aktor Nummer:
+									if ( FrameData[2] == 0x01 )
+									{
+										// Zustand:        
+										if ( FrameData[3] == 0x00 )
+										{
+											rgb_led(0,2,2);  // LED rot ==> OFF 
+										}
+										if ( FrameData[3] == 0x01 )
+										{
+											rgb_led(1,2,2);  // LED rot ==> ON 
+										}
+									}
+									if ( FrameData[2] == 0x02 )
+									{
+										// Zustand:        
+										if ( FrameData[3] == 0x00 )
+										{
+											rgb_led(2,0,2);  // LED gruen ==> OFF 
+										}
+										if ( FrameData[3] == 0x01 )
+										{
+											rgb_led(2,1,2);  // LED gruen ==> ON 
+										}
+									}
+									if ( FrameData[2] == 0x03 )
+									{
+										// Zustand:        
+										if ( FrameData[3] == 0x00 )
+										{
+											rgb_led(2,2,0);  // LED blau ==> OFF 
+										}
+										if ( FrameData[3] == 0x01 )
+										{
+											rgb_led(2,2,1);  // LED blau ==> ON 
+										}
+									}
+								}
+								
+							}
+							else
 							{
-								SendAck(1, (ControlByte >> 1) & 0x03);
+								// Prüfsumme falsch
+								// LED rot ==> ON
+								rgb_led(1,0,0);
+								continue;
 							}
 						}
-						else
-						{
-							// Prüfsumme falsch
+						if (FramePointer >= MAX_RX_FRAME_LENGTH){
+							// Maximale Framelänge überschritten!
 							// LED rot ==> ON
 							rgb_led(1,0,0);
 							continue;
 						}
-					}
-					if (FramePointer >= MAX_RX_FRAME_LENGTH){
-						// Maximale Framelänge überschritten!
-						// LED rot ==> ON
-						rgb_led(1,0,0);
-						continue;
-					}
-					FramePointer++;
+						FramePointer++;
+					}	
 				}
 				
 			}
@@ -328,9 +396,14 @@ void setup(void)
 	// Nicht Senden:
 	LED_PORT &= ~_BV(RS485);
 
-	// RGB LED an:
+	// RGB LED an (weiss):
 	rgb_led(1,1,1);
-	
+
+    /*
+     *  Initialize UART library, pass baudrate and AVR cpu clock
+     *  with the macro 
+     *  UART_BAUD_SELECT() (normal speed mode )
+     */
 	uart_init( UART_BAUD_SELECT(UART_BAUD_RATE,F_CPU) ); 
 	suart_init();
 	sei();
@@ -347,7 +420,7 @@ void SendAck(int typ, unsigned char Empfangsfolgenummer)
 	int i;
 	unsigned char StartByte;
 	
-		// Sende:
+	// Sende:
 	_delay_ms(8);	
 	LED_PORT |= _BV(RS485);
 	//_delay_ms(1);
@@ -487,31 +560,31 @@ void crc16_shift(unsigned char w_byte)
 void rgb_led(uint8_t red, uint8_t green, uint8_t blue )
 {
   // LED rot ON
-  if (red == 1)
+    if (red == 1)
 	{
-	  LED_PORT_B &= ~_BV(LED_red);
+        LED_PORT_B &= ~_BV(LED_red);	/* ON */
 	}
-  else
-  {
-	  LED_PORT_B |= _BV(LED_red);
+    else if (red == 0)
+    {
+        LED_PORT_B |= _BV(LED_red);	  /* OFF */
 	}	
 
-  if (green == 1)
+    if (green == 1)
 	{ 
-    LED_PORT_B &= ~_BV(LED_green); 
-  }		
-	else
+        LED_PORT_B &= ~_BV(LED_green);	/* ON */ 
+    }		
+	else if (green == 0)
 	{
-		LED_PORT_B |= _BV(LED_green);
+		LED_PORT_B |= _BV(LED_green);  /* OFF */
 	}
 
 	if (blue == 1)
 	{
-		LED_PORT_B &= ~_BV(LED_blue);
+		LED_PORT_B &= ~_BV(LED_blue);	/* ON */
 	}
-	else
+	else if (blue == 0)
 	{
-	  LED_PORT_B |= _BV(LED_blue);
+        LED_PORT_B |= _BV(LED_blue);  /* OFF */
 	}
 }
 
