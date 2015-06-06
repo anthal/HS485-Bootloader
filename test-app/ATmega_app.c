@@ -22,7 +22,7 @@
 
 
 //#define DEBUG 
-#define OWN_ADDRESS	  0x1029
+#define OWN_ADDRESS	  	0x1029
 #define UART_BAUD_RATE	19200
  
 #define LED_PORT_B PORTB
@@ -38,9 +38,12 @@
 //#define LED2     PIND5
 #define RS485    PIND2
 
-#define LED_red   PINB3
-#define LED_blue  PINB2
-#define LED_green PINB5
+#define LED_red   PINB3 /* RGB-LED rot  ==> Error */
+//#define LED_blue  PINB2 /* RGB-LED blau ==> Bootloader */
+#define LED_blue  PIND6 /* RGB-LED blau ==> Bootloader */
+//#define LED_green PINB5 /* RGB-LED grün ==> Anwendungsprogramm */
+#define LED_green PIND4 /* RGB-LED grün ==> Anwendungsprogramm */
+
 
 #define Seg_A	PINC0
 #define Seg_B	PINC1
@@ -168,7 +171,7 @@ int main()
 				#ifdef DEBUG 
 				  sputs("\n\rStartzeichen empfangen");
 				#endif	
-				Segment_led(1);
+				//Segment_led(1);
 			}
 			else
 			{
@@ -370,14 +373,14 @@ int main()
 void setup(void)
 {
 	/* set LED pin as output */
-	LED_DDR |= _BV(LED1);
-	LED_DDR |= _BV(LED2);
-	LED_DDR |= _BV(RS485);
+	//LED_DDR |= _BV(LED1);
+	//LED_DDR |= _BV(LED2);
+	LED_DDR_D |= _BV(RS485);
 	
 	/* set RGB LED pin as output */
 	LED_DDR_B |= _BV(LED_red);
-	LED_DDR_B |= _BV(LED_green);
-	LED_DDR_B |= _BV(LED_blue);
+	LED_DDR_D |= _BV(LED_green);
+	LED_DDR_D |= _BV(LED_blue);
 	
 	/* set 7 Seg. pins as output */
 	LED_DDR_C |= _BV(Seg_A);
@@ -389,10 +392,10 @@ void setup(void)
 	Segment_led(0);
 
 	// Error LED aus:
-	LED_PORT |= _BV(LED2);
+	//LED_PORT |= _BV(LED2);
 	
 	// Nicht Senden:
-	LED_PORT &= ~_BV(RS485);
+	LED_PORT_D &= ~_BV(RS485);
 
 	// RGB LED an (weiss):
 	rgb_led(1,1,1);
@@ -553,34 +556,40 @@ void crc16_shift(unsigned char w_byte)
 /*********************************************************************************** 
  rgb_led
 ************************************************************************************/
-void rgb_led(uint8_t red, uint8_t green, uint8_t blue )
+void rgb_led( uint8_t red, uint8_t green, uint8_t blue )
 {
   // LED rot ON
-    if (red == 1)
+  if ( red == 1 )
 	{
-        LED_PORT_B &= ~_BV(LED_red);	/* ON */
+	  LED_PORT_B &= ~_BV(LED_red);
 	}
-    else if (red == 0)
-    {
-        LED_PORT_B |= _BV(LED_red);	  /* OFF */
+  else
+  {
+	  LED_PORT_B |= _BV(LED_red);
 	}	
 
-    if (green == 1)
+  if ( green == 1 )
 	{ 
-        LED_PORT_B &= ~_BV(LED_green);	/* ON */ 
-    }		
-	else if (green == 0)
+		//LED_PORT_B &= ~_BV(LED_green); 
+		LED_PORT_D |= _BV(LED_green);
+	}		
+	else
 	{
-		LED_PORT_B |= _BV(LED_green);  /* OFF */
+		//LED_PORT_B |= _BV(LED_green);
+		LED_PORT_D &= ~_BV(LED_green); 
+		
 	}
 
-	if (blue == 1)
+	if ( blue == 1 )
 	{
-		LED_PORT_B &= ~_BV(LED_blue);	/* ON */
+		//LED_PORT_B &= ~_BV(LED_blue);
+		LED_PORT_D |= _BV(LED_blue);
 	}
-	else if (blue == 0)
+	else
 	{
-        LED_PORT_B |= _BV(LED_blue);  /* OFF */
+		//LED_PORT_B |= _BV(LED_blue);
+		LED_PORT_D &= ~_BV(LED_blue);
+		
 	}
 }
 

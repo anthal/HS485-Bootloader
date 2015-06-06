@@ -31,11 +31,10 @@
 #define UART_BAUD_RATE  19200     /* Baudrate */
 
 #define LED_PORT_B PORTB
-#define LED_PORT_D PORTD
-#define LED_DDR_D  DDRD
 #define LED_DDR_B  DDRB
 
-//#define LED_PORT PORTD
+#define LED_PORT_D PORTD
+#define LED_DDR_D  DDRD
 
 //#define LED1     PIND4  /* LED rot-unten */
 //#define LED2     PIND5  /* LED rot-rechts */
