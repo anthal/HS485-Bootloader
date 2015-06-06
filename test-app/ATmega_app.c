@@ -22,9 +22,7 @@
 
 
 //#define DEBUG 
-
 #define OWN_ADDRESS	  0x1029
-
 #define UART_BAUD_RATE	19200
  
 #define LED_PORT_B PORTB
@@ -33,11 +31,11 @@
 #define LED_PORT_C PORTC
 #define LED_DDR_C  DDRC
 
-#define LED_DDR  DDRD
-#define LED_PORT PORTD
+#define LED_PORT_D PORTD
+#define LED_DDR_D  DDRD
 
-#define LED1     PIND4
-#define LED2     PIND5
+//#define LED1     PIND4
+//#define LED2     PIND5
 #define RS485    PIND2
 
 #define LED_red   PINB3
@@ -118,7 +116,7 @@ int main()
   
 	setup();
 
-	sputs("\n\rHier ist das Anwendungsprogramm...");
+	sputs("\n\rHier ist die Test-App...");
 	// gruen:
 	rgb_led(0,1,0);  /* LED gruen ==> ON */
     unsigned int state_update = 0;
@@ -428,13 +426,11 @@ void SendAck(int typ, unsigned char Empfangsfolgenummer)
 	ControlByte = (( Empfangsfolgenummer & 0x03 ) << 5 ) | 0x11;
 	
 	// NUR zum TESTEN!!! Bitte fixen und dann entfernen!!
-	ControlByte = 0x52;
+	//ControlByte = 0x52;
 	
-	#ifdef DEBUG 
-	  //sputs("Controlbyte:0x%02x ", ControlByte);
-	  sputs("\nSend Controlbyte: ");
-	  // printf("Controlbyte:%02x ", stAckData.ucControlByte);
-	#endif	
+	// #ifdef DEBUG 
+	  sputs(sprintf("\nSend Controlbyte: 0x%02x", ControlByte));
+	// #endif	
 
 	DataLength = 0;
 	StartByte = FRAME_START_SHORT;
