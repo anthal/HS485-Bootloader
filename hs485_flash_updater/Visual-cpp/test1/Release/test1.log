@@ -1,0 +1,4 @@
+﻿  test1.cpp
+d:\projekte\haus_bus\hs485\visualc++\hs485-flash\test1\Form1.h(744): warning C4101: 'send_data': Unreferenzierte lokale Variable
+d:\projekte\haus_bus\hs485\visualc++\hs485-flash\test1\Form1.h(743): warning C4101: 'data': Unreferenzierte lokale Variable
+  test1.vcxproj -> D:\Projekte\HAUS_BUS\HS485\VisualC++\HS485-Flash\Release\HS485-Flash.exe
