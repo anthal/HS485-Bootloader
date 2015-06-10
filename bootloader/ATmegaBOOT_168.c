@@ -27,6 +27,7 @@
 
 
 // #define DEBUG
+//#define OWN_ADDRESS	  	0x102A
 #define OWN_ADDRESS	  	0x1029
 #define UART_BAUD_RATE  19200     /* Baudrate */
 
@@ -38,7 +39,8 @@
 
 //#define LED1     PIND4  /* LED rot-unten */
 //#define LED2     PIND5  /* LED rot-rechts */
-#define RS485    PIND2  /* LED rot-oben */
+#define RS485_Send    PIND2  /* Send */
+#define RS485_Recv    PIND3  /* Recv */
 
 #define LED_red   PINB3 /* RGB-LED rot  ==> Error */
 //#define LED_blue  PINB2 /* RGB-LED blau ==> Bootloader */
@@ -117,7 +119,7 @@ int main()
 	uint16_t v, w;
 	
 	unsigned long ulAddress1;
-	bool address_ok;
+	bool address_ok = false;
 	
 	uint8_t ControlByte=0;
 	unsigned char Escape = 0;
@@ -127,6 +129,8 @@ int main()
 	unsigned char FramePointer=0;
 	
 	unsigned char FrameData[MAX_RX_FRAME_LENGTH];
+	
+	bool START_CHAR_SHORT = false;
 	
 	uint8_t SenderAddress[4];
 	
@@ -158,22 +162,19 @@ int main()
 		// break;
 		if ( ch & UART_NO_DATA )
 		{
-			//sputs("\n\r Daten nicht empfangen" );
-			//rgb_led(1,0,0);
+			// Keine Daten empfangen
 			;
 		}
 		else
 		{		
-			// sputs("\n\r Daten empfangen" );
-			//rgb_led(0,1,0);
-			//sputchar(ch);
+			// Daten empfangen
 			if (ch == ESCAPE_CHAR && Escape == 0)
 			{
 				Escape = 1;
 				continue;		// zurueck zum Beginn der while Schleife, folgendes auslassen
 			}
-			
-			if (ch == 0xFD) // Startzeichen
+
+			if (ch == FRAME_START_LONG ) // Startzeichen 0xFD
 			{
 				Escape = 0;
 				AddressPointer = 0;
@@ -183,9 +184,17 @@ int main()
 				crc16_shift(ch);
 				// Flash LED off:
 				//LED_PORT |= _BV(LED1);
+				START_CHAR_SHORT = 0;
 			}
-			else
+			else if (ch == FRAME_START_SHORT ) // Startzeichen 0xFE
 			{
+				//sputs("0xFE\n");
+				START_CHAR_SHORT = 1;
+				
+			}
+			else if ( START_CHAR_SHORT == 0 )
+			{
+
 				if (Escape == 1)
 				{
 					ch |= 0x80;
@@ -196,6 +205,9 @@ int main()
 				if (AddressPointer < AddressLen)		
 				{
 					to_address.byte[AddressPointer] = ch;
+					#ifdef DEBUG 
+						sputchar(ch + 0x30);
+					#endif
 					AddressPointer++;
 					crc16_shift(ch);
 				}
@@ -208,19 +220,19 @@ int main()
 					crc16_shift(ch);
 					AddressCharToHex(to_address.byte, &ulAddress1);
 					// Adresse mit der Eigenen vergleichen:
-					//if (ulAddress1 == 0x1029 )		
 					if (ulAddress1 == OWN_ADDRESS )		
 					{
 						address_ok = true;
 						#ifdef DEBUG 
-							sputs("\nAdresse OK");
+							sputs("\nAdr. OK\n");
 						#endif	
-						sputs("\nAdresse OK");
 					}
 					else
 					{
-						sputs("\nAdresse Falsch");
-                        address_ok = false;
+						#ifdef DEBUG 
+							sputs("\nAdr. Falsch\n");
+							address_ok = false;
+						#endif
 					}
 				}
 				
@@ -247,7 +259,7 @@ int main()
 				
 						FrameData[FramePointer] = ch;
 						crc16_shift(ch);
-						// sputs("\n\r Daten empfangen" );
+						//sputs("\n\r Daten empfangen" );
 						
 						// Daten komplett empfangen
 						if (FramePointer == (DataLength - 1))		
@@ -256,17 +268,21 @@ int main()
 							crc16_shift(0);
 							FramePointer = 0;
 							AddressPointer = 0;
-							// sputs("\n\r Daten komplett empfangen" );
+							//sputs("\n\r Daten komplett empfangen" );
 							
 							// Checksumme überprüfen
 							if (crc16_register == 0)
 							{	
+							    //sputs("\n\r CRC OK" );
 								// Programming fertig:	
 								if ( FrameData[0] == 0x67 )
 								{
 									//EIND = 0;
+									#ifdef DEBUG 
+										sputs("revc 0x67\n" );
+									#endif	
+										
 									SendAck(2, (ControlByte >> 1) & 0x03, 0);
-									sputs("\n\r 0x67 empfangen ==> Programming fertig" );
 									break;
 								}
 								// Vorbereitung Programming:
@@ -276,7 +292,7 @@ int main()
 									SendAck(2, (ControlByte >> 1) & 0x03, 0x52);
 									//SendAck(2, ControlByte);
 									#ifdef DEBUG 
-										sputs("\n\r 0x70 empfangen ==> Vorbereitung Programming" );
+										sputs("recv 0x70\n" );
 									#endif	
 									// kurz warten
 									_delay_ms(4);
@@ -318,6 +334,9 @@ int main()
 							else
 							{
 								// Prüfsumme falsch
+								#ifdef DEBUG 
+									sputs("CRC ERROR\n");
+								#endif	
 								//error_led(3);
 								rgb_led(1,0,0);
 								continue;
@@ -325,6 +344,9 @@ int main()
 						}
 						if (FramePointer >= MAX_RX_FRAME_LENGTH){
 							// Maximale Framelänge überschritten!
+							#ifdef DEBUG 
+								sputs("ERROR 2\n");
+							#endif	
 							//error_led(3);
 							rgb_led(1,0,0);
 							continue;
@@ -337,7 +359,7 @@ int main()
 		//_delay_ms(1000);
 	}	
 	
-	sputs("\n\r Springe zur Adresse 0x0000!");
+	sputs("Jump to 0x0000\n");
 	_delay_ms(1000);
 
 	/* vor Rücksprung eventuell benutzte Hardware deaktivieren
@@ -381,7 +403,7 @@ void SendAck(int typ, unsigned char Empfangsfolgenummer, uint8_t ControlByte)
 	
 	// Sende:
 	_delay_ms(8);	
-	LED_PORT_D |= _BV(RS485);
+	LED_PORT_D |= _BV(RS485_Send);
 	//_delay_ms(1);
 
 	// Hack ==> ToDo: saubere Loesung!	
@@ -391,8 +413,7 @@ void SendAck(int typ, unsigned char Empfangsfolgenummer, uint8_t ControlByte)
 	}
 	
 	#ifdef DEBUG 
-	  //sputs("Controlbyte:0x%02x ", ControlByte);
-	  sputs("\nSend Controlbyte: ");
+	  sputs("Send Controlbyte\n");
 	#endif	
 	DataLength = 0;
 	StartByte = FRAME_START_SHORT;
@@ -437,7 +458,7 @@ void SendAck(int typ, unsigned char Empfangsfolgenummer, uint8_t ControlByte)
 	// _delay_ms(2);
 	_delay_ms(4);
 	// Nicht Senden:
- 	LED_PORT_D &= ~_BV(RS485);
+ 	LED_PORT_D &= ~_BV(RS485_Send);
 
 	// return 0;
 }
@@ -552,7 +573,7 @@ void setup(void)
 	// set LED pin as output 
 	//LED_DDR_D |= _BV(LED1);
 	//LED_DDR_D |= _BV(LED2);
-	LED_DDR_D |= _BV(RS485);
+	LED_DDR_D |= _BV(RS485_Send);
 	
 	// set RGB LED pin as output 
 	LED_DDR_B |= _BV(LED_red);
@@ -564,8 +585,10 @@ void setup(void)
 	// Error LED aus:
 	//LED_PORT_D |= _BV(LED2);
 	
-	// Nicht Senden:
-	LED_PORT_D &= ~_BV(RS485);
+	// Nicht Senden (LOW):
+	LED_PORT_D &= ~_BV(RS485_Send);
+	// Immer empfangen (LOW):
+	LED_PORT_D &= ~_BV(RS485_Recv);
 
 	/* Interrupt Vektoren verbiegen */
 	char sregtemp = SREG;
