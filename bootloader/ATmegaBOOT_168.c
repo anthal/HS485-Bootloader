@@ -4,7 +4,7 @@
 
 /************************
  ToDo
- - Device Adresse in EEPROM oder in spezielle Flash-Speicher Adresse ==> OK: 14.6.2015
+ - Device Adresse in spezielle Flash-Speicher Adresse (0x1FFC) ==> OK: 14.6.2015
  - in SendAck den Hack ersetzen
  
 *************************/

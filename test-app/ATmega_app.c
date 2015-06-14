@@ -5,7 +5,7 @@
 /************************
  ToDo
  - Interruptsteuerung beim UART-Empfang ==> OK, war bereits realisiert
- - Device Adresse in EEPROM oder in spezielle Flash-Speicher Adresse ==> OK: 14.6.2015
+ - Device Adresse in spezielle Flash-Speicher Adresse (0x1FFC) ==> OK: 14.6.2015
  - in SendAck 0x51 ersetzen
  - 
 *************************/
@@ -24,7 +24,6 @@
 
 
 //#define DEBUG 
-//#define OWN_ADDRESS	  	0x1029
 #define UART_BAUD_RATE	19200
  
 #define LED_PORT_B PORTB
