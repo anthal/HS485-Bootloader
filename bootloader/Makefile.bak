@@ -17,15 +17,15 @@
 # etc...
 
 # program name should not be changed...
-PROGRAM    = ATmega_app
-TARGET_ELF = ATmega-app.elf
+PROGRAM    = ATmegaBOOT_168
+TARGET_ELF = arduino-bootloader.elf
 
 # enter the parameters for the avrdude isp tool
 ISPTOOL	   = stk500v2
 ISPPORT	   = usb
 ISPSPEED   = -b 115200
 
-MCU_TARGET = atmega168
+# MCU_TARGET = atmega168
 # LDSECTION  = --section-start=.text=0x3800
 
 # the efuse should really be 0xf8; since, however, only the lower
@@ -51,8 +51,7 @@ STK500-2 = $(STK500) -d$(MCU_TARGET) -ms -q -lCF -LCF -cUSB -I200kHz -s -wt
 
 # OBJ        = $(PROGRAM).o
 OBJ        = $(PROGRAM).o uart.o suart.o
-# OPTIMIZE   = -O2
-OPTIMIZE   = -Os
+OPTIMIZE   = -O2
 # OPTIMIZE = -Os -fno-inline-small-functions -fno-split-wide-types -mshort-calls
 
 DEFS       = 
@@ -60,14 +59,12 @@ LIBS       =
 
 # CC         = avr-gcc
 CC = d:/INSTALL/Arduino/arduino-1.0.5/hardware/tools/avr/bin/avr-gcc
-# REMOVE = rm -rf
-REMOVE = d:/INSTALL/Arduino/arduino-1.0.5/hardware/tools/avr/utils/bin/rm -rf
 
 # Override is only needed by avr-lib build system.
+
 override CFLAGS        = -g -Wall $(OPTIMIZE) -mmcu=$(MCU_TARGET) -DF_CPU=$(AVR_FREQ) $(DEFS)
-override LDFLAGS       = -Wl,$(LDSECTION)
-##override LDFLAGS       = -Wl,$(LDSECTION) -Wl,$(LDSECTION_DATA)
-#override LDFLAGS       = -Wl,-Map,$(PROGRAM).map,$(LDSECTION)
+# override LDFLAGS       = -Wl,$(LDSECTION)
+override LDFLAGS       = $(LDSECTIONS)
 
 OBJCOPY        = avr-objcopy
 OBJDUMP        = avr-objdump
@@ -78,12 +75,13 @@ all: TARGET = atmega8
 all: MCU_TARGET = atmega8
 #all: $(PROGRAM)_atmega328.hex
 all: $(PROGRAM)_atmega8.hex
-# Sektion für den Code (.text):
-all: LDSECTION  = --section-start=.text=0x0000
-# all: LDSECTION_DATA  = --section-start=.progmem.data=0x1F00
-# all: LDSECTION_DATA  = --section-start=.progmem.data=0x0000
-# all: LDSECTION_DATA  = --section-start=.mydata=0x0000
-# all: LDSECTION_DATA  = --section-start=.prg_version=0x1fff
+
+# all: LDSECTION  = --section-start=.text=0x1800,--defsym=app_start=0
+# all: LDSECTIONS  = -Wl,--section-start=.text=0x1800 -Wl,--section-start=.version=0x1ffc
+all: LDSECTIONS  = -Wl,--section-start=.text=0x1800 -Wl,--section-start=.version=0x
+
+# all: DEV_ADDR  = --section-start=.text=0x1FFC,--defsym=dev_addr=1029
+#all: LDSECTION  = --section-start=.text=0x0000
 all: AVR_FREQ = 16000000L 
 all: CFLAGS += '-DMAX_TIME_COUNT=F_CPU>>4' '-DNUM_LED_FLASHES=1' -DBAUD_RATE=19200
 all: ${TARGET_ELF}
@@ -104,8 +102,7 @@ isp-stk500: $(PROGRAM)_$(TARGET).hex
 	
 clean:
 	# rm -rf *.o *.elf *.lst *.map *.sym *.lss *.eep *.srec *.bin *.hex
-	# rm -rf *.o *.elf *.lst *.map *.sym *.lss *.eep *.srec *.bin 
-	$(REMOVE) *.o *.elf *.lst *.map *.sym *.lss *.eep *.srec *.bin 
+	rm -rf *.o *.elf *.lst *.map *.sym *.lss *.eep *.srec *.bin 
 
 %.lst: %.elf
 	$(OBJDUMP) -h -S $< > $@

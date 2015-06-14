@@ -4,57 +4,45 @@
 
 /************************
  ToDo
- - Device Adresse in EEPROM oder in spezielle Flash-Speicher Adresse
+ - Device Adresse in EEPROM oder in spezielle Flash-Speicher Adresse ==> OK: 14.6.2015
  - in SendAck den Hack ersetzen
- - 
+ 
 *************************/
-
-
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
-//#include <avr/wdt.h>
-//#include <avr/boot.h>
 #include "boot.h"
 #include <util/delay.h>
 #include "uart.h"
 #include "main.h"
 #include "suart.h"
-
+#include <avr/eeprom.h>
 #include <stdbool.h> 
-//#include <avr/pgmspace.h>
-//#include "pin_defs.h"
-
+#include <avr/pgmspace.h>
 
 // #define DEBUG
-//#define OWN_ADDRESS	  	0x102A
-#define OWN_ADDRESS	  	0x1029
+
+//#define OWN_ADDRESS	  	0x1029
 #define UART_BAUD_RATE  19200     /* Baudrate */
 
+// define ports 
 #define LED_PORT_B PORTB
 #define LED_DDR_B  DDRB
-
 #define LED_PORT_D PORTD
 #define LED_DDR_D  DDRD
-
-//#define LED1     PIND4  /* LED rot-unten */
-//#define LED2     PIND5  /* LED rot-rechts */
-#define RS485_Send    PIND2  /* Send */
-#define RS485_Recv    PIND3  /* Recv */
-
-#define LED_red   PINB3 /* RGB-LED rot  ==> Error */
-//#define LED_blue  PINB2 /* RGB-LED blau ==> Bootloader */
-#define LED_blue  PIND6 /* RGB-LED blau ==> Bootloader */
-//#define LED_green PINB5 /* RGB-LED grün ==> Anwendungsprogramm */
-#define LED_green PIND4 /* RGB-LED grün ==> Anwendungsprogramm */
+#define RS485_Send    PIND2 /* Send */
+#define RS485_Recv    PIND3 /* Recv */
+#define LED_red   PINB3 	/* RGB-LED rot  ==> Error */
+#define LED_blue  PIND6 	/* RGB-LED blau ==> Bootloader */
+#define LED_green PIND4 	/* RGB-LED grün ==> Anwendungsprogramm */
 
 /* define various device id's */
-#define CRC16_POLYGON 		0x1002
-#define FRAME_START_LONG 	0xFD
-#define FRAME_START_SHORT	0xFE
-#define ESCAPE_CHAR			  0xFC
-#define MAX_RX_FRAME_LENGTH   255
-#define CONTAINS_SENDER(x)  (((x) & (1<<3)) !=0)
+#define CRC16_POLYGON 			0x1002
+#define FRAME_START_LONG 		0xFD
+#define FRAME_START_SHORT		0xFE
+#define ESCAPE_CHAR			  	0xFC
+#define MAX_RX_FRAME_LENGTH   	255
+#define CONTAINS_SENDER(x)  	(((x) & (1<<3)) !=0)
 
 /* function prototypes */
 void byte_response(uint8_t);
@@ -70,8 +58,8 @@ void SendDataByte(unsigned char);
 void setup(void);
 void AddressCharToHex(unsigned char *p_ucAddress, unsigned long *p_ulAddress);
 
-unsigned char	temp;              /* Variable */
-unsigned int  crc16_register;				// Register mit CRC16 Code	
+unsigned char	temp;           /* Variable */
+unsigned int  	crc16_register;	// Register mit CRC16 Code	
 
 /*********************************************************************************** 
  Program Page of Controller
@@ -153,6 +141,9 @@ int main()
 	
 	// pointer HIER initialisieren:
 	void (*start)( void ) = 0x0000;        /* Funktionspointer auf 0x0000 */
+	
+	// Device Addresse aus Flash lesen: 
+	uint32_t OWN_ADDRESS = pgm_read_dword(0x1FFC);
 	
 	setup();	
 	
@@ -628,5 +619,4 @@ void AddressCharToHex(unsigned char *p_ucAddress, unsigned long *p_ulAddress)
 	for(i=0;i<4;i++)
 		x[i]=p_ucAddress[3-i];
 }
-
 

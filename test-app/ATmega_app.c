@@ -5,7 +5,7 @@
 /************************
  ToDo
  - Interruptsteuerung beim UART-Empfang ==> OK, war bereits realisiert
- - Device Adresse in EEPROM oder in spezielle Flash-Speicher Adresse
+ - Device Adresse in EEPROM oder in spezielle Flash-Speicher Adresse ==> OK: 14.6.2015
  - in SendAck 0x51 ersetzen
  - 
 *************************/
@@ -20,11 +20,11 @@
 #include "uart.h"
 #include "main.h"
 #include "suart.h"
+#include <avr/pgmspace.h>
 
 
 //#define DEBUG 
-//#define OWN_ADDRESS	  	0x102A
-#define OWN_ADDRESS	  	0x1029
+//#define OWN_ADDRESS	  	0x1029
 #define UART_BAUD_RATE	19200
  
 #define LED_PORT_B PORTB
@@ -60,6 +60,7 @@
 #define ESCAPE_CHAR			  0xFC
 #define MAX_RX_FRAME_LENGTH      255
 #define CONTAINS_SENDER(x)  (((x) & (1<<3)) !=0)
+
 
 /* function prototypes */
 void byte_response(uint8_t);
@@ -126,6 +127,9 @@ int main()
 	// gruen:
 	rgb_led(0,1,0);  /* LED gruen ==> ON */
     unsigned int state_update = 0;
+	
+	// Device Addresse aus Flash lesen: 
+	uint32_t OWN_ADDRESS = pgm_read_dword(0x1FFC);
 	
 	while (1) 
 	{
