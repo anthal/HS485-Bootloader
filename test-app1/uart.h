@@ -109,13 +109,17 @@ Date        Description
 
 /** Size of the circular receive buffer, must be power of 2 */
 //#define UART_RX_BUFFER_SIZE 32
-#ifndef UART_RX_BUFFER_SIZE
-#define UART_RX_BUFFER_SIZE 128
-#endif
+//#ifndef UART_RX_BUFFER_SIZE
+#define UART_RX_BUFFER_SIZE 32
+//#define UART_RX_BUFFER_SIZE 128
+//#define UART_RX_BUFFER_SIZE 256
+//#endif
 /** Size of the circular transmit buffer, must be power of 2 */
-#ifndef UART_TX_BUFFER_SIZE
-#define UART_TX_BUFFER_SIZE 128
-#endif
+//#ifndef UART_TX_BUFFER_SIZE
+#define UART_TX_BUFFER_SIZE 32
+//#define UART_TX_BUFFER_SIZE 128
+//#define UART_TX_BUFFER_SIZE 256
+//#endif
 
 /* test if the size of the circular buffers fits into SRAM */
 #if ( (UART_RX_BUFFER_SIZE+UART_TX_BUFFER_SIZE) >= (RAMEND-0x60 ) )

@@ -132,7 +132,6 @@ OBJDUMP        = $(call fixpath,$(GCCROOT)avr-objdump)
 #OBJDUMP        = avr-objdump
 
 SIZE           = $(GCCROOT)avr-size
-
 all: TARGET = atmega8
 all: MCU_TARGET = atmega8
 all: AVR_FREQ = 16000000L 

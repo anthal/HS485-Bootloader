@@ -3,8 +3,10 @@
 *************************/
 
 /************************
+ - Device Adresse in spezielle Flash-Speicher Adresse (0x1FFC)
+ - in device_addr.c ==> define DEV_ADDR 0x1001
+
  ToDo
- - Device Adresse in spezielle Flash-Speicher Adresse (0x1FFC) ==> OK: 14.6.2015
  - in SendAck den Hack ersetzen
  
 *************************/
@@ -22,7 +24,6 @@
 
 // #define DEBUG
 
-//#define OWN_ADDRESS	  	0x1029
 #define UART_BAUD_RATE  19200     /* Baudrate */
 
 // define ports 

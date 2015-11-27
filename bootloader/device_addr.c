@@ -1,4 +1,4 @@
-#define DEV_ADDR 0x102F
+#define DEV_ADDR 0x1001
 //#define DEV_ADDR 0x1029
 
 #include <avr/pgmspace.h>
@@ -27,7 +27,7 @@ asm("  .section .devaddr\n"
 
 /*
 ===== WICHTIG! ===== 
-Section muss im Makefile unten stehen:
+Section ".devaddr" muss im Makefile unten stehen:
 
 all: LDSECTIONS  = -Wl,--section-start=.text=0x1800 -Wl,--section-start=.devaddr=0x1FFC
 
@@ -40,6 +40,13 @@ all: LDSECTIONS  = -Wl,--section-start=.text=0x1800 -Wl,--section-start=.devaddr
 %.bin: %.elf
 	$(OBJCOPY) -j .text -j .data -j .devaddr --set-section-flags .devaddr=alloc,load -O binary $< $@
 
+*/
+
+/*
+Automatisch neue Adresse flashen:
+1. Schreibe neue Seriennummer in device_address.c
+2. make
+3. program bootloader.hex
 */
 
 

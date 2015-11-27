@@ -2,10 +2,7 @@
 #include <avr/interrupt.h>
 
 #define XTAL	16e6
-
-//#define	BAUD	57600
 #define	BAUD	19200
-
 
 typedef unsigned char  u8;
 typedef   signed char  s8;

@@ -1,1 +1,1 @@
-<pd><ViewState><e p="bootloader" x="true"></e></ViewState></pd>
+<pd><ViewState><e p="bootloader" x="true"></e><e p="flash_access" x="true"></e><e p="test-app" x="true"></e></ViewState></pd>

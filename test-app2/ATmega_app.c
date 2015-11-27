@@ -1,6 +1,8 @@
-/************************
+/***************************
 *  HS485 Applikation
-************************/
+* 
+* Ansteuerung ELV USB-SI6
+****************************/
 
 /************************
  ToDo
@@ -23,6 +25,7 @@
 #include <avr/pgmspace.h>
 
 
+
 //#define DEBUG 
 #define UART_BAUD_RATE	19200
  
@@ -35,15 +38,29 @@
 #define LED_PORT_D PORTD
 #define LED_DDR_D  DDRD
 
-//#define LED1     PIND4
-//#define LED2     PIND5
+// INPUT
+#define STATE1      PINC0
+#define STATE2      PINC1
+#define STATE3      PINC2
+#define STATE4      PINC3
+#define STATE5      PINC4
+#define STATE6      PINC5
+
+// OUTPUT
+#define RELAIS1     PIND4
+#define RELAIS2     PIND5
+#define RELAIS3     PIND6
+#define RELAIS4     PIND7
+#define RELAIS5     PINB3
+#define RELAIS6     PINB4
+
 #define RS485    PIND2
 
-#define LED_red   PINB3 /* RGB-LED rot  ==> Error */
-//#define LED_blue  PINB2 /* RGB-LED blau ==> Bootloader */
-#define LED_blue  PIND6 /* RGB-LED blau ==> Bootloader */
-//#define LED_green PINB5 /* RGB-LED grün ==> Anwendungsprogramm */
-#define LED_green PIND4 /* RGB-LED grün ==> Anwendungsprogramm */
+
+//#define LED_red   PINB3 /* RGB-LED rot  ==> Error */
+//#define LED_blue  PIND6 /* RGB-LED blau ==> Bootloader */
+//#define LED_green PIND4 /* RGB-LED grün ==> Anwendungsprogramm */
+
 
 /*
 #define Seg_A	PINC0
@@ -80,7 +97,6 @@ union address_union {
 	uint16_t word;
 	uint8_t  byte[2];
 } address;
-// register uint16_t address = 0;
 
 union to_address_union {
 	uint16_t word[2];
@@ -103,10 +119,6 @@ unsigned int  crc16_register;				// Register mit CRC16 Code
 //unsigned uint16_t  crc16_register;		// Register mit CRC16 Code
 unsigned char FrameData[MAX_RX_FRAME_LENGTH];
 uint8_t SenderAddress[4];
-//uint8_t buff[256];
-//uint8_t i;
-//uint8_t bootuart = 0;
-//uint8_t error_count = 0;
  
 typedef void (*boot_reset_fptr_t)(void);
 boot_reset_fptr_t bootloader = (boot_reset_fptr_t) 0x0C00;
@@ -124,11 +136,12 @@ int main()
 
 	sputs("\n\rHier ist die Test-App...");
 	// gruen:
-	rgb_led(0,1,0);  /* LED gruen ==> ON */
+	//rgb_led(0,1,0);  /* LED gruen ==> ON */
     unsigned int state_update = 0;
 	
 	// Device Addresse aus Flash lesen: 
 	uint32_t OWN_ADDRESS = pgm_read_dword(0x1FFC);
+	//uint32_t OWN_ADDRESS = 0x1029;
 	
 	while (1) 
 	{
@@ -218,6 +231,7 @@ int main()
 					{
 						sputs("\nAdresse Falsch");
                         address_ok = false;
+						state_update = 0;
 					}
 				}
 				
@@ -297,37 +311,79 @@ int main()
 										// Zustand:        
 										if ( FrameData[3] == 0x00 )
 										{
-											rgb_led(0,2,2);  // LED rot ==> OFF 
+											switch_relais(1,0);  // Relais 1 rot ==> OFF 
 										}
 										if ( FrameData[3] == 0x01 )
 										{
-											rgb_led(1,2,2);  // LED rot ==> ON 
+											switch_relais(1,1);  // Relais 1 rot ==> ON 
 										}
 									}
+									
 									if ( FrameData[2] == 0x02 )
 									{
 										// Zustand:        
 										if ( FrameData[3] == 0x00 )
 										{
-											rgb_led(2,0,2);  // LED gruen ==> OFF 
+											switch_relais(2,0);  // Relais 2 rot ==> OFF 
 										}
 										if ( FrameData[3] == 0x01 )
 										{
-											rgb_led(2,1,2);  // LED gruen ==> ON 
+											switch_relais(2,1);  // Relais 2 rot ==> ON 
 										}
 									}
+									
 									if ( FrameData[2] == 0x03 )
 									{
 										// Zustand:        
 										if ( FrameData[3] == 0x00 )
 										{
-											rgb_led(2,2,0);  // LED blau ==> OFF 
+											switch_relais(3,0);  // Relais 3 rot ==> OFF 
 										}
 										if ( FrameData[3] == 0x01 )
 										{
-											rgb_led(2,2,1);  // LED blau ==> ON 
+											switch_relais(3,1);  // Relais 3 rot ==> ON 
 										}
 									}
+
+									if ( FrameData[2] == 0x04 )
+									{
+										// Zustand:        
+										if ( FrameData[3] == 0x00 )
+										{
+											switch_relais(4,0);  // Relais 4 rot ==> OFF 
+										}
+										if ( FrameData[3] == 0x01 )
+										{
+											switch_relais(4,1);  // Relais 4 rot ==> ON 
+										}
+									}
+
+									if ( FrameData[2] == 0x05 )
+									{
+										// Zustand:        
+										if ( FrameData[3] == 0x00 )
+										{
+											switch_relais(5,0);  // Relais 5 rot ==> OFF 
+										}
+										if ( FrameData[3] == 0x01 )
+										{
+											switch_relais(5,1);  // Relais 5 rot ==> ON 
+										}
+									}
+
+									if ( FrameData[2] == 0x06 )
+									{
+										// Zustand:        
+										if ( FrameData[3] == 0x00 )
+										{
+											switch_relais(6,0);  // Relais 6 rot ==> OFF 
+										}
+										if ( FrameData[3] == 0x01 )
+										{
+											switch_relais(6,1);  // Relais 6 rot ==> ON 
+										}
+									}
+
 								}
 								
 							}
@@ -335,26 +391,28 @@ int main()
 							{
 								// Prüfsumme falsch
 								// LED rot ==> ON
-								rgb_led(1,0,0);
+								//rgb_led(1,0,0);
 								continue;
 							}
 						}
 						if (FramePointer >= MAX_RX_FRAME_LENGTH){
 							// Maximale Framelänge überschritten!
 							// LED rot ==> ON
-							rgb_led(1,0,0);
+							//rgb_led(1,0,0);
 							continue;
 						}
 						FramePointer++;
-					}	
+					}
+					sputs("*");
 				}
+					sputs("#");				
 				
 			}
 			//flash_led(2);
+			//sputs(".");	
 			
-		} /* end of forever loop */			
-		//return 0;
-	}	
+		} 	/* else = serial data  */ 		
+	}	    /* end of forever loop */
 }
 
 /******************************************************************************************** 
@@ -365,24 +423,67 @@ int main()
 ************************************************************************************/
 void setup(void)
 {
-	/* set LED pin as output */
-	//LED_DDR |= _BV(LED1);
-	//LED_DDR |= _BV(LED2);
+
+	#define STATE1      PINC0
+	#define STATE2      PINC1
+	#define STATE3      PINC2
+	#define STATE4      PINC3
+	#define STATE5      PINC4
+	#define STATE6      PINC5
+
+	#define RELAIS1     PIND4
+	#define RELAIS2     PIND5
+	#define RELAIS3     PIND6
+	#define RELAIS4     PIND7
+	#define RELAIS5     PINB3
+	#define RELAIS6     PINB4	
+	
+	/* set RS485 pin as output */
 	LED_DDR_D |= _BV(RS485);
 	
-	/* set RGB LED pin as output */
-	LED_DDR_B |= _BV(LED_red);
-	LED_DDR_D |= _BV(LED_green);
-	LED_DDR_D |= _BV(LED_blue);
+	/* set RELAIS pins as output */
+	LED_DDR_D |= _BV(RELAIS1);
+	LED_DDR_D |= _BV(RELAIS2);
+	LED_DDR_D |= _BV(RELAIS3);
+	LED_DDR_D |= _BV(RELAIS4);
+	LED_DDR_B |= _BV(RELAIS5);
+	LED_DDR_B |= _BV(RELAIS6);
 	
-	// Error LED aus:
-	//LED_PORT |= _BV(LED2);
-	
+	/* set STATE pins as input */
+	LED_DDR_C &= ~_BV(STATE1);
+	LED_DDR_C &= ~_BV(STATE2);
+	LED_DDR_C &= ~_BV(STATE3);
+	LED_DDR_C &= ~_BV(STATE4);
+	LED_DDR_C &= ~_BV(STATE5);
+	LED_DDR_C &= ~_BV(STATE6);
+
 	// Nicht Senden:
 	LED_PORT_D &= ~_BV(RS485);
+	
+	// Relais 1 ==> 1:
+	LED_PORT_D |= _BV(RELAIS1);
+	// Relais 2 ==> 1:
+	LED_PORT_D |= _BV(RELAIS2);
+	// Relais 3 ==> 1:
+	LED_PORT_D |= _BV(RELAIS3);
+	// Relais 4 ==> 1:
+	LED_PORT_D |= _BV(RELAIS4);
+	// Relais 5 ==> 1:
+	LED_PORT_B |= _BV(RELAIS5);
+	// Relais 6 ==> 1:
+	LED_PORT_B |= _BV(RELAIS6);
 
-	// RGB LED an (weiss):
-	rgb_led(1,1,1);
+	// alle Relais aus
+	/*
+  if ( red == 1 )
+	{
+	  LED_PORT_B &= ~_BV(LED_red);
+	}
+  else
+  {
+	  LED_PORT_B |= _BV(LED_red);
+	}	
+	*/
 
     /*
      *  Initialize UART library, pass baudrate and AVR cpu clock
@@ -538,44 +639,136 @@ void crc16_shift(unsigned char w_byte)
 }
 
 /*********************************************************************************** 
- rgb_led
+ 
 ************************************************************************************/
-void rgb_led( uint8_t red, uint8_t green, uint8_t blue )
+void switch_relais( uint8_t number, uint8_t state )
 {
-  // LED rot ON
-  if ( red == 1 )
+	int delay_time = 500;
+	
+	if ( number == 1 )
 	{
-	  LED_PORT_B &= ~_BV(LED_red);
-	}
-  else
-  {
-	  LED_PORT_B |= _BV(LED_red);
+		// C0
+		if (( state == 1 ) && (!(PINC & (1<<PINC0))))
+		{
+			// LOW:
+			LED_PORT_D &= ~_BV(RELAIS1);
+			_delay_ms(delay_time);
+			// HIGH:
+			LED_PORT_D |= _BV(RELAIS1);
+		}	
+		if (( state == 0 ) && ((PINC & (1<<PINC0))))
+		{
+			// LOW:
+			LED_PORT_D &= ~_BV(RELAIS1);
+			_delay_ms(delay_time);
+			// HIGH:
+			LED_PORT_D |= _BV(RELAIS1);
+		}	
 	}	
 
-  if ( green == 1 )
-	{ 
-		//LED_PORT_B &= ~_BV(LED_green); 
-		LED_PORT_D |= _BV(LED_green);
-	}		
-	else
+	if ( number == 2 )
 	{
-		//LED_PORT_B |= _BV(LED_green);
-		LED_PORT_D &= ~_BV(LED_green); 
-		
+		if (( state == 1 ) && (!(PINC & (1<<PINC1))))
+		{
+			// LOW:
+			LED_PORT_D &= ~_BV(RELAIS2);
+			_delay_ms(delay_time);
+			// HIGH:
+			LED_PORT_D |= _BV(RELAIS2);
+		}	
+		if (( state == 0 ) && ((PINC & (1<<PINC1))))
+		{
+			// LOW:
+			LED_PORT_D &= ~_BV(RELAIS2);
+			_delay_ms(delay_time);
+			// HIGH:
+			LED_PORT_D |= _BV(RELAIS2);
+		}	
 	}
+	
+	if ( number == 3 )
+	{
+		if (( state == 1 ) && (!(PINC & (1<<PINC2))))
+		{
+			// LOW:
+			LED_PORT_D &= ~_BV(RELAIS3);
+			_delay_ms(delay_time);
+			// HIGH:
+			LED_PORT_D |= _BV(RELAIS3);
+		}	
+		if (( state == 0 ) && ((PINC & (1<<PINC2))))
+		{
+			// LOW:
+			LED_PORT_D &= ~_BV(RELAIS3);
+			_delay_ms(delay_time);
+			// HIGH:
+			LED_PORT_D |= _BV(RELAIS3);
+		}	
+	}
+	
+	if ( number == 4 )
+	{
+		if (( state == 1 ) && (!(PINC & (1<<PINC3))))
+		{
+			// LOW:
+			LED_PORT_D &= ~_BV(RELAIS4);
+			_delay_ms(delay_time);
+			// HIGH:
+			LED_PORT_D |= _BV(RELAIS4);
+		}	
+		if (( state == 0 ) && ((PINC & (1<<PINC3))))
+		{
+			// LOW:
+			LED_PORT_D &= ~_BV(RELAIS4);
+			_delay_ms(delay_time);
+			// HIGH:
+			LED_PORT_D |= _BV(RELAIS4);
+		}	
+	}	
 
-	if ( blue == 1 )
+	if ( number == 5 )
 	{
-		//LED_PORT_B &= ~_BV(LED_blue);
-		LED_PORT_D |= _BV(LED_blue);
-	}
-	else
-	{
-		//LED_PORT_B |= _BV(LED_blue);
-		LED_PORT_D &= ~_BV(LED_blue);
+		if (( state == 1 ) && (!(PINC & (1<<PINC4))))
+		{
+			// LOW:
+			LED_PORT_B &= ~_BV(RELAIS5);
+			_delay_ms(delay_time);
+			// HIGH:
+			LED_PORT_B |= _BV(RELAIS5);
+		}	
+		if (( state == 0 ) && ((PINC & (1<<PINC4))))
+		{
+			// LOW:
+			LED_PORT_B &= ~_BV(RELAIS5);
+			_delay_ms(delay_time);
+			// HIGH:
+			LED_PORT_B |= _BV(RELAIS5);
+		}	
 		
-	}
+	}	
+
+	if ( number == 6 )
+	{
+		if (( state == 1 ) && (!(PINC & (1<<PINC5))))
+		{
+			// LOW:
+			LED_PORT_B &= ~_BV(RELAIS6);
+			_delay_ms(delay_time);
+			// HIGH:
+			LED_PORT_B |= _BV(RELAIS6);
+		}	
+		if (( state == 0 ) && ((PINC & (1<<PINC5))))
+		{
+			// LOW:
+			LED_PORT_B &= ~_BV(RELAIS6);
+			_delay_ms(delay_time);
+			// HIGH:
+			LED_PORT_B |= _BV(RELAIS6);
+		}	
+		
+	}	
 }
+
 
 /*********************************************************************************** 
  Wandelt ein 4-Byte char array in eine 32-Bit Adresse um
