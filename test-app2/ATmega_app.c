@@ -7,9 +7,9 @@
 /************************
  ToDo
  - Interruptsteuerung beim UART-Empfang ==> OK, war bereits realisiert
- - Device Adresse in spezielle Flash-Speicher Adresse (0x1FFC) ==> OK: 14.6.2015
- - in SendAck 0x51 ersetzen
- - 
+ - Device Adresse in spezielle Flash-Speicher Adresse (0x1FFC) ==> OK (Bootlodaer File: device_addr.c): 14.6.2015
+ - in SendAck2 0x19 ersetzen
+ - Abfrage Relais Status 
 *************************/
 
 
@@ -23,7 +23,6 @@
 #include "main.h"
 #include "suart.h"
 #include <avr/pgmspace.h>
-
 
 
 //#define DEBUG 
@@ -87,10 +86,12 @@ void rgb_led(uint8_t red, uint8_t green, uint8_t blue);
 void crc16_init(void);
 void crc16_shift(unsigned char);
 void SendAck(int, unsigned char);
+void SendAck2(int, unsigned char);
 void SendByte(unsigned char);
 void SendDataByte(unsigned char);
 void setup(void);
 void AddressCharToHex(unsigned char *p_ucAddress, unsigned long *p_ulAddress);
+void switch_relais( uint8_t, uint8_t);
 
 /* some variables */
 union address_union {
@@ -123,6 +124,7 @@ uint8_t SenderAddress[4];
 typedef void (*boot_reset_fptr_t)(void);
 boot_reset_fptr_t bootloader = (boot_reset_fptr_t) 0x0C00;
 
+
 /*********************************************************************************** 
  Hauptprogramm
 ************************************************************************************/
@@ -141,7 +143,8 @@ int main()
 	
 	// Device Addresse aus Flash lesen: 
 	uint32_t OWN_ADDRESS = pgm_read_dword(0x1FFC);
-	//uint32_t OWN_ADDRESS = 0x1029;
+	// uint32_t OWN_ADDRESS = 0x1029;
+	// uint32_t OWN_ADDRESS = 0x1001;
 	
 	while (1) 
 	{
@@ -304,18 +307,17 @@ int main()
 								// Set Aktor:	
 								if ( FrameData[0] == 0x73 )
 								{
-									SendAck(2, (ControlByte >> 1) & 0x03);
 									// Aktor Nummer:
 									if ( FrameData[2] == 0x01 )
 									{
 										// Zustand:        
 										if ( FrameData[3] == 0x00 )
 										{
-											switch_relais(1,0);  // Relais 1 rot ==> OFF 
+											switch_relais(1, 0);  // Relais 1 rot ==> OFF 
 										}
 										if ( FrameData[3] == 0x01 )
 										{
-											switch_relais(1,1);  // Relais 1 rot ==> ON 
+											switch_relais(1, 1);  // Relais 1 rot ==> ON 
 										}
 									}
 									
@@ -496,10 +498,12 @@ void setup(void)
 	//sputs("Setup ATmega8 from Software UART\n\r" );
 }
 
+
 /*********************************************************************************** 
  Send ACK
  
  SendAck(2, (ControlByte >> 1) & 0x03);
+ 
 ************************************************************************************/
 void SendAck(int typ, unsigned char Empfangsfolgenummer)
 {
@@ -512,10 +516,6 @@ void SendAck(int typ, unsigned char Empfangsfolgenummer)
 	//_delay_ms(1);
 	
 	ControlByte = (( Empfangsfolgenummer & 0x03 ) << 5 ) | 0x11;
-	
-	// NUR zum TESTEN!!! Bitte fixen und dann entfernen!!
-	//ControlByte = 0x52;
-	
 	// #ifdef DEBUG 
 	//  sputs(sprintf("\nSend Controlbyte: 0x%02x", ControlByte));
 	// #endif	
@@ -577,11 +577,84 @@ void SendAck(int typ, unsigned char Empfangsfolgenummer)
 }
 
 /*********************************************************************************** 
+ Send ACK
+ 
+ SendAck(2, (ControlByte >> 1) & 0x03);
+ 
+************************************************************************************/
+void SendAck2(int typ, unsigned char Empfangsfolgenummer)
+{
+	int i;
+	unsigned char StartByte;
+	
+	// Sende:
+	_delay_ms(8);	
+	LED_PORT |= _BV(RS485);
+	//_delay_ms(1);
+	
+	ControlByte = (( Empfangsfolgenummer & 0x03 ) << 5 ) | 0x11;
+	
+	// NUR zum TESTEN!!! Bitte fixen und dann entfernen!!
+	ControlByte = 0x19;
+	
+	// #ifdef DEBUG 
+	//  sputs(sprintf("\nSend Controlbyte: 0x%02x", ControlByte));
+	// #endif	
+
+	DataLength = 0;
+	StartByte = FRAME_START_LONG;
+	// Frame prüfen (== FD):
+	
+	crc16_init();
+	// Startzeichen:
+	SendByte(StartByte);			
+	crc16_shift(StartByte);
+	// Master address:
+	SendDataByte(0);	
+	crc16_shift(0);
+	SendDataByte(0);	
+	crc16_shift(0);
+	SendDataByte(0);	
+	crc16_shift(0);
+	SendDataByte(0);	
+	crc16_shift(0);
+
+	// Controllbyte:
+	SendDataByte(ControlByte);	
+	crc16_shift(ControlByte);
+
+    // Sender address:
+    DataLength = typ;
+	for ( i = 0; i < DataLength; i++ )				
+	{
+		SendDataByte(to_address.byte[i]);
+		crc16_shift(to_address.byte[i]);
+	}	
+    
+    // Data Bytes:
+	SendByte(0x02);	
+	crc16_shift(0x02);
+    
+	crc16_shift(0);
+	crc16_shift(0);
+	// CRC16-Checksumme:
+	SendDataByte((crc16_register >> 8) & 0xff);	
+	_delay_ms(1);
+	SendDataByte((crc16_register) & 0xff);
+	
+	_delay_ms(4);
+	// Nicht Senden:
+ 	LED_PORT &= ~_BV(RS485);
+	// return 0;
+}
+
+/*********************************************************************************** 
  Sendet ein Byte über die Schnittstelle
 ************************************************************************************/
 void SendByte(unsigned char ucByte)
 {
 	// Senden:
+    _delay_ms(1);
 	uart_putc(ucByte);
 	//putch(ucByte);
 	// return p_cCom->write(&p_ucByte,1);
@@ -597,11 +670,13 @@ void SendDataByte(unsigned char ucByte)
 	if ((ucByte==FRAME_START_LONG) || (ucByte==FRAME_START_SHORT) || (ucByte==ESCAPE_CHAR))
 	{
 		c = ESCAPE_CHAR;
+        // _delay_ms(1);
 		SendByte(c);
 		// if (!SendByte(c))
 			// return false;
 		ucByte &= 0x7f;
 	}
+    // _delay_ms(1);
 	SendByte(ucByte);
 	// return SendByte(p_cCom,p_ucByte);
 }
@@ -639,7 +714,7 @@ void crc16_shift(unsigned char w_byte)
 }
 
 /*********************************************************************************** 
- 
+ switch_relais
 ************************************************************************************/
 void switch_relais( uint8_t number, uint8_t state )
 {
@@ -767,6 +842,7 @@ void switch_relais( uint8_t number, uint8_t state )
 		}	
 		
 	}	
+	SendAck2(4, (ControlByte >> 1) & 0x03);
 }
 
 
