@@ -92,6 +92,9 @@ void SendDataByte(unsigned char);
 void setup(void);
 void AddressCharToHex(unsigned char *p_ucAddress, unsigned long *p_ulAddress);
 void switch_relais( uint8_t, uint8_t);
+int get_relais_state(uint8_t number);
+void SendState(unsigned char Empfangsfolgenummer, int actor, int state);
+
 
 /* some variables */
 union address_union {
@@ -133,6 +136,7 @@ int main()
 	unsigned int 	ch = 0;     /* Empfangenes Zeichen + Statuscode */
 	unsigned long ulAddress1;
 	bool address_ok = false;
+    unsigned int    actor, relais_state;
   
 	setup();
 
@@ -282,6 +286,21 @@ int main()
 							// Checksumme überprüfen
 							if (crc16_register == 0)
 							{	
+								// Get Aktor Status:	
+								if ( FrameData[0] == 0x53 )
+								{
+									// Actor Number:
+                                    actor = FrameData[1];
+									if (( actor >= 0x01 ) && ( actor <= 0x06 ))
+									{
+										// Get Relais State:        
+                                        relais_state = get_relais_state(actor);  
+                                        // SendState(Empfangsfolgenummer, actor, relais_state);
+                                        // SendState(0, actor, relais_state);
+                                        SendState((ControlByte >> 1) & 0x03, actor, relais_state);
+									}
+								}
+								
 								// Programming fertig:	
 								if ( FrameData[0] == 0x67 )
 								{
@@ -308,86 +327,20 @@ int main()
 								if ( FrameData[0] == 0x73 )
 								{
 									// Aktor Nummer:
-									if ( FrameData[2] == 0x01 )
+									if (( FrameData[2] >= 0x01 ) && ( FrameData[2] <= 0x06 ))
 									{
 										// Zustand:        
 										if ( FrameData[3] == 0x00 )
 										{
-											switch_relais(1, 0);  // Relais 1 rot ==> OFF 
+											switch_relais(FrameData[2],0);  // Relais 1 rot ==> OFF 
 										}
 										if ( FrameData[3] == 0x01 )
 										{
-											switch_relais(1, 1);  // Relais 1 rot ==> ON 
+											switch_relais(FrameData[2],1);  // Relais 1 rot ==> ON 
 										}
 									}
-									
-									if ( FrameData[2] == 0x02 )
-									{
-										// Zustand:        
-										if ( FrameData[3] == 0x00 )
-										{
-											switch_relais(2,0);  // Relais 2 rot ==> OFF 
-										}
-										if ( FrameData[3] == 0x01 )
-										{
-											switch_relais(2,1);  // Relais 2 rot ==> ON 
-										}
-									}
-									
-									if ( FrameData[2] == 0x03 )
-									{
-										// Zustand:        
-										if ( FrameData[3] == 0x00 )
-										{
-											switch_relais(3,0);  // Relais 3 rot ==> OFF 
-										}
-										if ( FrameData[3] == 0x01 )
-										{
-											switch_relais(3,1);  // Relais 3 rot ==> ON 
-										}
-									}
-
-									if ( FrameData[2] == 0x04 )
-									{
-										// Zustand:        
-										if ( FrameData[3] == 0x00 )
-										{
-											switch_relais(4,0);  // Relais 4 rot ==> OFF 
-										}
-										if ( FrameData[3] == 0x01 )
-										{
-											switch_relais(4,1);  // Relais 4 rot ==> ON 
-										}
-									}
-
-									if ( FrameData[2] == 0x05 )
-									{
-										// Zustand:        
-										if ( FrameData[3] == 0x00 )
-										{
-											switch_relais(5,0);  // Relais 5 rot ==> OFF 
-										}
-										if ( FrameData[3] == 0x01 )
-										{
-											switch_relais(5,1);  // Relais 5 rot ==> ON 
-										}
-									}
-
-									if ( FrameData[2] == 0x06 )
-									{
-										// Zustand:        
-										if ( FrameData[3] == 0x00 )
-										{
-											switch_relais(6,0);  // Relais 6 rot ==> OFF 
-										}
-										if ( FrameData[3] == 0x01 )
-										{
-											switch_relais(6,1);  // Relais 6 rot ==> ON 
-										}
-									}
-
 								}
-								
+                                
 							}
 							else
 							{
@@ -631,9 +584,89 @@ void SendAck2(int typ, unsigned char Empfangsfolgenummer)
 		crc16_shift(to_address.byte[i]);
 	}	
     
-    // Data Bytes:
+    // Count of Data Bytes:
 	SendByte(0x02);	
 	crc16_shift(0x02);
+    
+	crc16_shift(0);
+	crc16_shift(0);
+	// CRC16-Checksumme:
+	SendDataByte((crc16_register >> 8) & 0xff);	
+	_delay_ms(1);
+	SendDataByte((crc16_register) & 0xff);
+	
+	_delay_ms(4);
+	// Nicht Senden:
+ 	LED_PORT &= ~_BV(RS485);
+	// return 0;
+}
+
+/*********************************************************************************** 
+ Send State
+ 
+ SendState(2, (ControlByte >> 1) & 0x03);
+ 
+************************************************************************************/
+void SendState(unsigned char Empfangsfolgenummer, int actor, int state)
+{
+	int i;
+	unsigned char StartByte;
+	
+	// Sende:
+	_delay_ms(8);	
+	LED_PORT |= _BV(RS485);
+	//_delay_ms(1);
+	
+	ControlByte = (( Empfangsfolgenummer & 0x03 ) << 5 ) | 0x11;
+	
+	// NUR zum TESTEN!!! Bitte fixen und dann entfernen!!
+	ControlByte = 0x1A;
+	
+	// #ifdef DEBUG 
+	//  sputs(sprintf("\nSend Controlbyte: 0x%02x", ControlByte));
+	// #endif	
+
+	DataLength = 0;
+	StartByte = FRAME_START_LONG;
+	// Frame prüfen (== FD):
+	
+	crc16_init();
+	// Startzeichen:
+	SendByte(StartByte);			
+	crc16_shift(StartByte);
+	// Master address:
+	SendDataByte(0);	
+	crc16_shift(0);
+	SendDataByte(0);	
+	crc16_shift(0);
+	SendDataByte(0);	
+	crc16_shift(0);
+	SendDataByte(0);	
+	crc16_shift(0);
+
+	// Controllbyte:
+	SendDataByte(ControlByte);	
+	crc16_shift(ControlByte);
+
+    // Sender address:
+    DataLength = 4;
+	for ( i = 0; i < DataLength; i++ )				
+	{
+		SendDataByte(to_address.byte[i]);
+		crc16_shift(to_address.byte[i]);
+	}	
+    
+    // Count of Data Bytes:
+	SendByte(0x04);	
+	crc16_shift(0x04);
+    
+    // Number of Actor:
+	SendByte(actor);	
+	crc16_shift(actor);
+    
+    // State
+	SendByte(state);	
+	crc16_shift(state);
     
 	crc16_shift(0);
 	crc16_shift(0);
@@ -845,6 +878,84 @@ void switch_relais( uint8_t number, uint8_t state )
 	SendAck2(4, (ControlByte >> 1) & 0x03);
 }
 
+/*********************************************************************************** 
+ get relais_state
+************************************************************************************/
+int get_relais_state(uint8_t number)
+{
+	//int delay_time = 500;
+	
+	if ( number == 1 )
+	{
+		if (PINC & (1<<PINC0))
+		{
+            return 1;
+		}	
+        else
+        {
+            return 0;
+        }
+	}	
+	else if ( number == 2 )
+	{
+		if (PINC & (1<<PINC1))
+		{
+            return 1;
+		}	
+        else
+        {
+            return 0;
+        }
+	}	
+	else if ( number == 3 )
+	{
+		if (PINC & (1<<PINC2))
+		{
+            return 1;
+		}	
+        else
+        {
+            return 0;
+        }
+	}	
+	else if ( number == 4 )
+	{
+		if (PINC & (1<<PINC3))
+		{
+            return 1;
+		}	
+        else
+        {
+            return 0;
+        }
+	}	
+	else if ( number == 5 )
+	{
+		if (PINC & (1<<PINC4))
+		{
+            return 1;
+		}	
+        else
+        {
+            return 0;
+        }
+	}	
+	else if ( number == 6 )
+	{
+		if (PINC & (1<<PINC5))
+		{
+            return 1;
+		}	
+        else
+        {
+            return 0;
+        }
+	}
+	else
+	{
+		return -1;
+	}
+}	
 
 /*********************************************************************************** 
  Wandelt ein 4-Byte char array in eine 32-Bit Adresse um
