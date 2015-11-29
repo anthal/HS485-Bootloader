@@ -9,9 +9,10 @@
  - Interruptsteuerung beim UART-Empfang ==> OK, war bereits realisiert
  - Device Adresse in spezielle Flash-Speicher Adresse (0x1FFC) ==> OK (Bootlodaer File: device_addr.c): 14.6.2015
  - in SendAck2 0x19 ersetzen
- - Abfrage Relais Status 
+ - Abfrage Relais Status ==> OK
+ - in SendState 0xA1 ersetzen
+ - Programmierung über HS485 nicht möglich (kein Sprung zum Bootloader ?!)
 *************************/
-
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -55,6 +56,8 @@
 
 #define RS485    PIND2
 
+// TX for soft UART in suart.h:
+// #define STX     PB1
 
 //#define LED_red   PINB3 /* RGB-LED rot  ==> Error */
 //#define LED_blue  PIND6 /* RGB-LED blau ==> Bootloader */
@@ -134,8 +137,8 @@ boot_reset_fptr_t bootloader = (boot_reset_fptr_t) 0x0C00;
 int main()
 {
 	unsigned int 	ch = 0;     /* Empfangenes Zeichen + Statuscode */
-	unsigned long ulAddress1;
-	bool address_ok = false;
+	unsigned long   ulAddress1;
+	bool            address_ok = false;
     unsigned int    actor, relais_state;
   
 	setup();
@@ -296,7 +299,6 @@ int main()
 										// Get Relais State:        
                                         relais_state = get_relais_state(actor);  
                                         // SendState(Empfangsfolgenummer, actor, relais_state);
-                                        // SendState(0, actor, relais_state);
                                         SendState((ControlByte >> 1) & 0x03, actor, relais_state);
 									}
 								}
@@ -307,19 +309,26 @@ int main()
 									SendAck(1, (ControlByte >> 1) & 0x03);
 								}
 								
-								// Flash Block size:
+								// p: Jump to bootloader (Flash Block size):
 								if (FrameData[0] == 0x70)
 								{
+									// kurz warten
+									_delay_ms(4);
 									// Send ACK
 									SendAck(2, (ControlByte >> 1) & 0x03);
 									#ifdef DEBUG 
-										sputs("\nSprung zum Bootloader");
+										sputs("\nJump to bootloader");
 									#endif	
-									// kurz warten
-									_delay_ms(4);
+                                    
+                                    // LOW:
+                                    LED_PORT_D &= ~_BV(RELAIS1);
+                                    _delay_ms(500);
+                                    // HIGH:
+                                    LED_PORT_D |= _BV(RELAIS1);
+                                    
 									// LED Blau ==> ON	
 									//rgb_led(0,0,1);	
-									// Sprung zum Bootloader:
+									// Jump to bootloader:
 									bootloader();
 								}	
 								

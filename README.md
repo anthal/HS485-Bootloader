@@ -40,4 +40,11 @@ Git
  
  `git push -u origin master`
  
+ToDo
+----
+
+- Programmierung über HS485 nach Schalten nicht mehr möglich (kein Sprung zum Bootloader ?!)
+- in SendAck2 0x19 ersetzen
+- in SendState 0xA1 ersetzen
+
 
